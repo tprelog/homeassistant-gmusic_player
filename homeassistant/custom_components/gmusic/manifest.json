@@ -1,0 +1,12 @@
+{
+  "domain": "gmusic_switch",
+  "name": "Gmusic Switch",
+  "documentation": "https://www.home-assistant.io/components/switch",
+  "requirements": [
+    "gmusicapi>=11.0.4"
+  ],
+  "dependencies": [
+    "group"
+  ],
+  "codeowners": []
+}

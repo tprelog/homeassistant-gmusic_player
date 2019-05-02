@@ -1,0 +1,27 @@
+Google Music:
+  module: gmaac
+  class: GMAAC
+  media_type: music
+  locale: 'en_US'
+  device_id: 'set_your_device_id'
+
+  ## Select login type to access Google Music
+  ## valid options are 'legacy' or 'oauth'
+  login_type: 'set_login_type'
+
+  ## legacy-login -- not required if using oauth-login
+  user: 'set_your_user'
+  password: 'set_your_password'
+ 
+  ## oauth-login -- not required if using legacy-login
+  oauth_credentials: '/set/path/to/GoogleMusic.oauth'
+ 
+  ## Controls in Home Assistant
+  boolean_connect: input_boolean.gmaac_connect
+  boolean_power: input_boolean.gmaac_power
+  select_playlist: input_select.gmaac_playlist
+  select_station: input_select.gmaac_station
+  select_player: input_select.gmaac_player
+  boolean_sync: input_boolean.gmaac_sync
+  boolean_load_pl: input_boolean.gmaac_load_pl
+  select_mode: input_select.gmaac_mode
