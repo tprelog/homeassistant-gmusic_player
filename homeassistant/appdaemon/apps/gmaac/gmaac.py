@@ -252,23 +252,21 @@ class GMAAC(hass.Hass):
       return
      
     if self._playmode == 'Station':
-      self._song = _track  ## use with station
+      self._song = _track   ## use with station
+      self._source = "2"    ## assume "2" here
+      # self.log("Station Song: {}".format(self._song))      
     elif self._playmode == 'Playlist':
       if "track" in self._song:
         self._song = _track['track']  ## use with playlist
+        # self.log("Playlist Song: {}".format(self._song))
       else:
         self._song = _track
+        # self.log("Playlist Track: {}".format(self._song))
       self._source = self._song['source']
-      self.log("Source = {}".format(self._source))
+      # self.log("Source = {}".format(self._source))
     else:
       self.log("invalid playmode: {}".format(self._playmode))
     
-    # self.log(" --- SHOW TRACK --------------")
-    # self.log(self._playlist_id)
-    # self.log(self._player_id)
-    # self.log(self._song)
-    # self.log(" SHOW TRACK END --------")
-
     self.play_track()
 
 
