@@ -76,8 +76,12 @@ class GmusicComponent(SwitchDevice):
 
         playlist = "gmusic_playlist"
         player = "gmusic_player"
-        
-        authtoken_path = get_default_config_dir() + "gmusic_authtoken"
+
+        token_path = "" ## You may need to set this if host is FreeNAS     
+        if token_path:
+            authtoken_path = token_path + "gmusic_authtoken"
+        else:
+            authtoken_path = get_default_config_dir() + "gmusic_authtoken"
         if os.path.isfile(authtoken_path):
             with open(authtoken_path, 'rb') as handle:
                 authtoken = pickle.load(handle)

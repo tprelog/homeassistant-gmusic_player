@@ -1,7 +1,7 @@
 {
   "domain": "gmusic_switch",
   "name": "Gmusic Switch",
-  "documentation": "https://www.home-assistant.io/components/switch",
+  "documentation": "https://community.home-assistant.io/t/google-music-in-ha/10976/214?u=troy",
   "requirements": [
     "gmusicapi>=11.0.4"
   ],
