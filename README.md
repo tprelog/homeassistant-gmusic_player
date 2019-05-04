@@ -12,4 +12,4 @@ Updated version of the original [Google Music custom component](https://communit
 In the future, I hope to contribute toward creating a new Google Music component for Home Assistant.  
 For now I have found [AppDaemon](https://www.home-assistant.io/docs/ecosystem/appdaemon) to be an easier approach to start learning python and the [gmusicapi](https://github.com/simon-weber/gmusicapi).  
 
-![img](img/gm_app.png)
+![img](img/gm_app_v0.0.2.png)

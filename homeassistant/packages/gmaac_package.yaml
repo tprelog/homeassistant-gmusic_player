@@ -1,6 +1,7 @@
 ##  Use this 'package.yaml' file to add entities for gmaac in Home Assistant
 ## 'gmaac_package.yaml' -- the name does not matter. This can be 'any_name.yaml'
 ##  https://www.home-assistant.io/docs/configuration/packages/#create-a-packages-folder
+##  version: 0.0.2
 
 input_select:
   gmaac_player:
@@ -10,7 +11,7 @@ input_select:
     - bedroom_stereo
     - family_room_stereo
     - workshop_stereo
-  gmaac_mode:
+  gmaac_source:
     name: Source
     icon: mdi:playlist-play
     options:
@@ -31,7 +32,7 @@ input_boolean:
   gmaac_connect:
     name: Connect
     icon: mdi:login
-    initial: true
+    initial: off
   gmaac_power:
     name: Power
     icon: mdi:power
@@ -44,6 +45,15 @@ input_boolean:
     name: Shuffle & Play
     icon: mdi:shuffle-variant
     initial: off
+  gmaac_prev:
+    name: PREV
+    icon: mdi:skip-previous
+    initial: off
+  gmaac_next:
+    name: NEXT
+    icon: mdi:skip-next
+    initial: off
+
 
 # camera:
 #   - platform: generic
@@ -70,3 +80,5 @@ group:
     - input_select.gmaac_playlist
     - input_select.gmaac_station
     - input_boolean.gmaac_load_pl
+    - input_boolean.gmaac_prev
+    - input_boolean.gmaac_next

@@ -4,6 +4,7 @@ import random
 import pickle
 import os.path
 
+''' version: 0.0.2 '''
 class GMAAC(hass.Hass):
   def initialize(self):
     self.gmc = Mobileclient()
@@ -15,8 +16,10 @@ class GMAAC(hass.Hass):
     self.select_playlist = self.args["select_playlist"]
     self.select_station = self.args["select_station"]
     self.boolean_load_pl = self.args["boolean_load_pl"]
-    self.select_playmode = self.args["select_mode"]
-
+    self.select_source = self.args["select_source"]
+    self.boolean_next = self.args["boolean_next"]
+    self.boolean_prev = self.args["boolean_prev"]
+    
     self.turn_off(self.boolean_connect)
 
     self._player_id = ''
@@ -28,22 +31,18 @@ class GMAAC(hass.Hass):
     self._station_to_index = {}
     self._tracks = []
     self._next_track_no = 0
-    self._song = []
-
-    self.artist = ''
-    self.artist_art = ''
-    self.album = ''
-    self.album_art = ''
-    self.title = ''
-
-    self._playmode = self.get_state(self.select_playmode)
+    self._track = []
+    
+    self._source = self.get_state(self.select_source)
 
     self.listen_state(self.connect, self.boolean_connect)
     self.listen_state(self.power, self.boolean_power, new="on")
     self.listen_state(self.sync, self.boolean_sync, new="on")  
-    self.listen_state(self.playmode, self.select_playmode)
+    self.listen_state(self.set_source, self.select_source)
     self.listen_state(self.get_tracks, self.boolean_load_pl, new="on")
-   
+    self.listen_state(self.next_track, self.boolean_next, new="on")
+    self.listen_state(self.prev_track, self.boolean_prev, new="on")
+    
     self.turn_on(self.boolean_connect)
 
   def reset_booleans(self):
@@ -54,21 +53,23 @@ class GMAAC(hass.Hass):
     '''
     self.turn_off(self.boolean_load_pl)
     self.turn_off(self.boolean_sync)
-    self.turn_off(self.boolean_power)  
+    self.turn_off(self.boolean_power)
+    self.turn_off(self.boolean_next)
+    self.turn_off(self.boolean_prev)
 
   def login(self):
-    mode=self.args["login_type"]
-    if mode == 'oauth':
+    _login = self.args["login_type"]
+    if _login == 'oauth':
       self.oauth_login()
-    elif mode == 'legacy':
+    elif _login == 'legacy':
       self.legacy_login()
     else:
       self.turn_off(self.boolean_connect)
-      raise SystemExit("Invalid login_type: {}".format(mode))
+      raise SystemExit("Invalid login_type: {}".format(_login))
 
   def legacy_login(self):
     ''' This legacy login may stop working at any time '''
-    authtoken_path = ".gm_authtoken"
+    authtoken_path = self.args["authtoken_path"] + "gmusic_authtoken"
     email=self.args["user"]
     password=self.args["password"]
     device_id=self.args["device_id"]
@@ -185,16 +186,16 @@ class GMAAC(hass.Hass):
     self.update_playlists(entity=None,attribute=None,old=None,new=None,kwargs=None)
     self.update_stations(entity=None,attribute=None,old=None,new=None,kwargs=None)
 
-  def playmode(self, entity, attribute, old, new, kwargs):
-    self._playmode = self.get_state(self.select_playmode)
+  def set_source(self, entity, attribute, old, new, kwargs):
+    self._source = self.get_state(self.select_source)
 
   def get_tracks(self, entity, attribute, old, new, kwargs):
-    if self._playmode == 'Station':
+    if self._source == 'Station':
       self.load_station(entity=None,attribute=None,old=None,new=None,kwargs=None)
-    elif self._playmode == 'Playlist':
+    elif self._source == 'Playlist':
       self.load_playlist(entity=None,attribute=None,old=None,new=None,kwargs=None)
     else:
-      self.log("invalid playmode: {}".format(self._playmode))
+      self.log("invalid source: {}".format(self._source))
       self.reset_booleans()
 
 
@@ -237,90 +238,72 @@ class GMAAC(hass.Hass):
 
 
   def get_track(self, entity, attribute, old, new, kwargs):
-    # self.log("--------------------------------------------")
-    # self.log("--- GET TRACK ----------------")
-    self._song = ''
+    self._track = ''    
     self._next_track_no = self._next_track_no + 1
-
     if self._next_track_no >= len(self._tracks):
       self._next_track_no = 0       ## Restart curent playlist (Loop)
       random.shuffle(self._tracks)  ## (re)Shuffle on Loop
-  
+    
     _track = self._tracks[self._next_track_no]
     if _track is None:
-      self.reset_booleans() 
-      return
-     
-    if self._playmode == 'Station':
-      self._song = _track   ## use with station
-      self._source = "2"    ## assume "2" here
-      # self.log("Station Song: {}".format(self._song))      
-    elif self._playmode == 'Playlist':
-      if "track" in self._song:
-        self._song = _track['track']  ## use with playlist
-        # self.log("Playlist Song: {}".format(self._song))
-      else:
-        self._song = _track
-        # self.log("Playlist Track: {}".format(self._song))
-      self._source = self._song['source']
-      # self.log("Source = {}".format(self._source))
-    else:
-      self.log("invalid playmode: {}".format(self._playmode))
+      self.reset_booleans()
+    if 'track' in _track:
+      _track = _track['track']
+    self._track = _track
     
-    self.play_track()
-
-
-  def play_track(self):
-    if 'trackId' in self._song:
-      # self.log("Found: trackId")
-      _uid = self._song['trackId']
-    elif 'storeId' in self._song:
-      # self.log("Found: storeId")
-      _uid = self._song['storeId']
-    elif 'id' in self._song:
-      # self.log("Found: id")
-      _uid = self._song['id']
+    if 'trackId' in _track:
+      _uid = _track['trackId']
+    elif 'storeId' in _track:
+      _uid = _track['storeId']
+    elif 'id' in _track:
+      _uid = _track['id']
     else:
-      self.log("KeyError: SONG ID NOT FOUND!")
+      self.log("TRACK ID NOT FOUND!")
+    
+    self.play_track(_uid)
 
-    if _uid:
-      _url = self.gmc.get_stream_url(_uid)
+
+  def play_track(self, uid):
+    try:
+      _url = self.gmc.get_stream_url(uid)
       self.call_service("media_player/play_media", entity_id = self._player_id, media_content_id = _url, media_content_type = self.args["media_type"])
-    else:
-      self.log("Track ID not found!")
+    except:
+      self.log(" --- FAILED TO PLAY TRACK --- ")
+      self.log("uid: {}".format(uid))
+      self.log("_url: {}".format(_url))
       # self.get_track(entity=None,attribute=None,old=None,new=None,kwargs=None)
 
-    ''' Optional Song Information '''
-    try:
-      self.artist = (self._song['artist'])
-      self.album = (self._song['album'])
-      self.title = (self._song['title'])
 
-      _album_art_ref = (self._song['albumArtRef'])  ## Returns a list with single dict
-      _album_art = _album_art_ref[0]                ## Returns a usable dict
-      self.album_art = (_album_art['url'])          ## Finally what we need
-    except:
-      pass
+  def next_track (self, entity, attribute, old, new, kwargs):
+    if new == 'on':
+      self.get_track(entity=None,attribute=None,old=None,new=None,kwargs=None)
+      self.turn_off(self.boolean_next)    
 
-    # _artist_art_ref = (self._song['artistArtRef'])  ## returns a list with single dict
-    # _artist_art = _artist_art_ref[0]                ## returns a usable dict
-    # self.artist_art = (_artist_art['url'])
+  def prev_track (self, entity, attribute, old, new, kwargs):
+    if new == 'on':
+      self._next_track_no = self._next_track_no - 2
+      self.get_track(entity=None,attribute=None,old=None,new=None,kwargs=None)
+      self.turn_off(self.boolean_prev)
 
-    # self.log("--------------------------------------------")
-    # self.log("--- TRACK INFORMATION  -----------")
-    # self.log("Artist: {}".format(self.artist))
-    # self.log(" Album: {}".format(self.album))
-    # self.log(" Title: {}".format(self.title))
-    # self.log(" ")
-    # # self.log("Artist Art:{}".format(self.artist_art))
-    # self.log("Album Art: {}".format(self.album_art))
-    # self.log("--------------------------------------------")
-    
 
   def show_info (self, entity, attribute, old, new, kwargs):
-    if self._source == "2":
-      self.set_state(self._player_id, attributes={"media_title":self.title, "media_artist":self.artist, "media_album_name":self.album, "entity_picture":self.album_art})
-    
+    _attr = {}
+    _track = self._track
+    if 'artist' in _track:
+      _attr['media_artist'] = _track['artist']
+    if 'album' in _track: 
+      _attr['media_album_name'] = _track['album']
+    if 'title' in _track: 
+      _attr['media_title'] = _track['title']
+    if 'albumArtRef' in _track:
+      _album_art_ref = _track['albumArtRef']   ## returns a list
+      _attr['entity_picture'] = _album_art_ref[0]['url'] ## of dic
+    if 'artistArtRef' in _track:
+      _artist_art_ref = _track['artistArtRef']
+      self.artist_art = _artist_art_ref[0]['url']
+    if _attr:
+     self.set_state(self._player_id, attributes=_attr)
+  
   def clear_info (self, entity, attribute, old, new, kwargs):
     if new != 'playing' or new != 'paused':
       self.set_state(self._player_id, attributes={"media_title":'', "media_artist":'', "media_album_name":'', "entity_picture":''})
@@ -332,41 +315,3 @@ class GMAAC(hass.Hass):
   def gmusic_api_logout(self, entity, attribute, old, new, kwargs):
     self.gmc.logout()
     self.reset_booleans()
-
-
-
-######################################################
-######################################################
-
-# song_id = "http://192.0.1.19:9999/get_song?id=Tjn7abpxorbog6pbihxq7leu2by"
-# media_player = "media_player.bedroom_stereo"
-
-# class GoogleMusicProxySimple(hass.Hass):
-
-#   def initialize(self):
-#       self.listen_state(self.music_on,"input_boolean.stream_music", new="on")
-#       self.listen_state(self.music_off,"input_boolean.stream_music", new="off")
-
-#   def music_on(self, entity, attribute, old, new, kwargs):
-#     #  song_id = "http://192.0.1.19:9999/get_song?id=Tjn7abpxorbog6pbihxq7leu2by"
-#     #  media_player = "media_player.bedroom_stereo"
-#       self.call_service("media_player/play_media", entity_id = media_player, media_content_id = song_id, media_content_type = "music")
-         
-#   def music_off(self, entity, attribute, old, new, kwargs):
-#     #  media_player = "media_player.bedroom_stereo"
-#       self.call_service("media_player/turn_off", entity_id = media_player)
-
-######################################################
-
-# class GoogleMusicProxySimple2(hass.Hass):
-
-#   def initialize(self):s
-#       self.listen_state(self.music_on,"input_boolean.stream_music", new="on")
-#       self.listen_state(self.music_off,"input_boolean.stream_music", new="off")
-    
-#   def music_on(self, entity, attribute, old, new, kwargs):
-#       netpath = 'http://{}:{}/get_song?id={}'.format(self.args["gproxy"], self.args["port"], self.args["song_id"])
-#       self.call_service("media_player/play_media", entity_id = self.args["media_player"], media_content_id = netpath, media_content_type = self.args["media_type"])
-  
-#   def music_off(self, entity, attribute, old, new, kwargs):
-#       self.call_service("media_player/turn_off", entity_id = self.args["media_player"])
