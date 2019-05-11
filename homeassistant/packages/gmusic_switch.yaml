@@ -13,17 +13,18 @@ input_select:
 
 switch:
   - platform: gmusic
-  ## Move invalid platform keys to 'custom_components/gmusic/switch.py'
-    # user:       Set this in Line 73 of gmusic/switch.py
-    # password:   Set this in Line 74 of gmusic/switch.py
-    # device_id:  Set this in Line 75 of gmusic/switch.py
-    # playlist:   Set this in Line 77 of gmusic/switch.py
-    # player:     Set this in Line 78 of gmusic/switch.py
+    user: !secret gmusic_user
+    password: !secret gmusic_password
+    device_id: !secret gmusic_device_id
+    playlist: 'gmusic_playlist'
+    media_player: 'gmusic_player'
+    ## Optional - Directory with RW access for gmusic_authtoken
+    #token_path: '/home/hass/.local/share/gmusicapi/'
 
 
-## -----------------------------------
-## The rest of this file is optional
-## -----------------------------------
+## ------------------------------------------------------------------------- ,
+##  --------------   The rest of this file is optional    ----------------
+## ------------------------------------------------------------------------- ,
 homeassistant:
   customize:
     switch.google_music:

@@ -16,20 +16,35 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import track_state_change, track_time_change
 from homeassistant.components.rest.sensor import RestData
 from homeassistant.components.media_player import (
-    SERVICE_PLAY_MEDIA, ATTR_MEDIA_CONTENT_ID,
-    ATTR_MEDIA_CONTENT_TYPE, ATTR_MEDIA_TITLE, DOMAIN as DOMAIN_MP)
-from homeassistant.config import get_default_config_dir
+    SERVICE_PLAY_MEDIA, ATTR_MEDIA_CONTENT_ID, ATTR_MEDIA_CONTENT_TYPE, DOMAIN as DOMAIN_MP)
 
+import voluptuous as vol
+import homeassistant.helpers.config_validation as cv
 
 import homeassistant.components.input_select as input_select
 
-#REQUIREMENTS = ['gmusicapi==10.1.2']  ## Default
-#REQUIREMENTS = ['gmusicapi>=11.0.4']  ## Support oauth
-
 # The domain of your component. Should be equal to the name of your component.
-DOMAIN = "gmusic_switch"
+DOMAIN = 'gmusic'
 
-#DEPENDENCIES = ['group', ]
+CONF_USERNAME = 'user'
+CONF_PASSWORD = 'password'
+CONF_DEVICE_ID = 'device_id'
+CONF_PLAYLIST = 'playlist'
+CONF_SPEAKERS = 'media_player'
+CONF_TOKEN_PATH = 'token_path'
+
+DEFAULT_TOKEN_PATH = "./."
+
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend = vol.Schema({
+    DOMAIN: vol.Schema({
+      vol.Required(CONF_USERNAME): cv.string,
+      vol.Required(CONF_PASSWORD): cv.string,
+      vol.Required(CONF_DEVICE_ID): cv.string,
+      vol.Required(CONF_PLAYLIST): cv.string,
+      vol.Required(CONF_SPEAKERS): cv.string,
+      vol.Optional(CONF_TOKEN_PATH, default=DEFAULT_TOKEN_PATH): cv.string,
+    })
+}, extra=vol.ALLOW_EXTRA)
 
 # Shortcut for the logger
 _LOGGER = logging.getLogger(__name__)
@@ -70,38 +85,23 @@ class GmusicComponent(SwitchDevice):
 
         self.hass = hass
         
-        user = "set_your_username_here"
-        password = "set_your_password_here"
-        device_id = "set_your_device_id_here"
-
-        playlist = "gmusic_playlist"
-        player = "gmusic_player"
-
-        token_path = "" ## You may need to set this if host is FreeNAS     
-        if token_path:
-            authtoken_path = token_path + "gmusic_authtoken"
-        else:
-            authtoken_path = get_default_config_dir() + "gmusic_authtoken"
+        authtoken_path = config.get(CONF_TOKEN_PATH, DEFAULT_TOKEN_PATH) + "gmusic_authtoken"
         if os.path.isfile(authtoken_path):
             with open(authtoken_path, 'rb') as handle:
                 authtoken = pickle.load(handle)
         else:
             authtoken = None
+
         self._api = GMusic()
-        #logged_in = self._api.login(config.get('user'), config.get('password'), config.get('device_id'), authtoken)
-        logged_in = self._api.login(user, password, device_id, authtoken)
+        logged_in = self._api.login(config.get(CONF_USERNAME), config.get(CONF_PASSWORD), config.get(CONF_DEVICE_ID), authtoken)
         if not logged_in:
             _LOGGER.error("Failed to log in, check http://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html#gmusicapi.clients.Mobileclient.login")	
             return False
         with open(authtoken_path, 'wb') as f:
             pickle.dump(self._api.session._authtoken, f)
-        
 
-
-        #self._playlist = "input_select." + config.get("playlist","")
-        self._playlist = "input_select." + playlist
-        #self._media_player = "input_select." + config.get("media_player","")
-        self._media_player = "input_select." + player
+        self._playlist = "input_select." + config.get("playlist","")
+        self._media_player = "input_select." + config.get("media_player","")
         self._entity_ids = []
         self._playing = False
         self._playlists = []
