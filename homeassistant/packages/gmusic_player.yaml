@@ -1,0 +1,65 @@
+## Google Music in Home Assistant as a media_player
+## Stream playlists and stations from your Google Music library
+
+## Use this 'package.yaml' file to configure "gmusic_player"
+
+media_player:
+  - platform: gmusic_player
+    user: !secret gmusic_user
+    password: !secret gmusic_password
+    device_id: !secret gmusic_device_id
+    source: 'gmusic_player_source'
+    playlist: 'gmusic_player_playlist'
+    station: 'gmusic_player_station'
+    media_player: 'gmusic_player_speakers'
+    ## Optional - Directory with RW access for "gmusic_authtoken"
+    #token_path: '/home/hass/.local/share/gmusicapi/'
+
+input_select:
+  gmusic_player_speakers:
+    name: Speakers
+    icon: mdi:speaker-wireless
+    options: ## Replace with entity_ids of your own media players
+    - bedroom_stereo
+    - workshop_stereo    
+  
+  gmusic_player_source:
+    name: Source
+    icon: mdi:library-music
+    options:
+    - "Playlist"
+    - "Station"
+  
+  gmusic_player_playlist:
+    name: Playlist
+    icon: mdi:playlist-music
+    options: ## Should be empty
+    - " "
+  
+  gmusic_player_station:
+    name: Station
+    icon: mdi:playlist-music
+    options:  ## Should be empty
+    - " "
+
+
+## ------------------------------------------------------------------------- ,
+##  --------------   The rest of this file is optional    ----------------
+## ------------------------------------------------------------------------- ,
+homeassistant:
+  customize:
+    media_player.gmusic_player:
+      friendly_name: "Google Music Player"
+      icon: mdi:play
+
+## This group may only be visable when using the "states UI"
+group:
+  google_music_media_player:
+    control: hidden
+    name: Google Music
+    entities:
+    - input_select.gmusic_player_speakers
+    - input_select.gmusic_player_source
+    - input_select.gmusic_player_playlist
+    - input_select.gmusic_player_station
+    - media_player.gmusic_player
