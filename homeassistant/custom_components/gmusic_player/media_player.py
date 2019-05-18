@@ -327,11 +327,11 @@ class GmusicComponent(MediaPlayerDevice):
     def _update_entity_ids(self):
         media_player = self.hass.states.get(self._media_player)
         if media_player is None:
-            _LOGGER.error("%s is not a valid input_select entity.", self._media_player)
+            _LOGGER.error("(%s) is not a valid input_select entity.", self._media_player)
             return False
         _entity_ids = "media_player." + media_player.state
         if self.hass.states.get(_entity_ids) is None:
-            _LOGGER.error("%s is not a valid media player.", media_player.state)
+            _LOGGER.error("(%s) is not a valid media player.", media_player.state)
             return False
         self._entity_ids = _entity_ids 
         return True
@@ -340,7 +340,7 @@ class GmusicComponent(MediaPlayerDevice):
     def _update_playlists(self, now=None):
         """ Sync playlists from Google Music library """
         if self.hass.states.get(self._playlist) is None:
-            _LOGGER.error("%s is not a valid input_select entity.", self._playlist)
+            _LOGGER.error("(%s) is not a valid input_select entity.", self._playlist)
             return
         self._playlist_to_index = {}
         self._playlists = self._api.get_all_user_playlist_contents()
@@ -361,7 +361,7 @@ class GmusicComponent(MediaPlayerDevice):
     def _update_stations(self, now=None):
         """ Sync stations from Google Music library """
         if self.hass.states.get(self._station) is None:
-            _LOGGER.error("%s is not a valid input_select entity.", self._station)
+            _LOGGER.error("(%s) is not a valid input_select entity.", self._station)
             return
         self._station_to_index = {}
         self._stations = self._api.get_all_stations()
@@ -390,12 +390,13 @@ class GmusicComponent(MediaPlayerDevice):
         """ if source == Playlist """
         _playlist_id = self.hass.states.get(self._playlist)
         if _playlist_id is None:
-            _LOGGER.error("%s is not a valid input_select entity.", self._playlist)
+            _LOGGER.error("(%s) is not a valid input_select entity.", self._playlist)
             return  
         
         playlist = _playlist_id.state        
         idx = self._playlist_to_index.get(playlist)
         if idx is None:
+            _LOGGER.error("playlist to index is none!")
             self._turn_off_media_player()
             return
         self._tracks = self._playlists[idx]['tracks']        
@@ -413,7 +414,7 @@ class GmusicComponent(MediaPlayerDevice):
         """ if source == station """
         _station_id = self.hass.states.get(self._station)
         if _station_id is None:
-            _LOGGER.error("%s is not a valid input_select entity.", self._station)
+            _LOGGER.error("(%s) is not a valid input_select entity.", self._station)
             return
         
         station = _station_id.state        
@@ -450,7 +451,12 @@ class GmusicComponent(MediaPlayerDevice):
             random.shuffle(self._tracks)    ## (re)Shuffle on Loop
             self._next_track_no = 0         ## Restart curent playlist (Loop)
             
-        _track = self._tracks[self._next_track_no]
+        try:
+            _track = self._tracks[self._next_track_no]
+        except IndexError:
+            _LOGGER.error("Out of range! Number of tracks in track_queue == (%s)", _total_tracks)
+            self._turn_off_media_player() 
+            
         if _track is None:
             self._turn_off_media_player() 
             return
