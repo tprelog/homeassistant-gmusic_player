@@ -122,7 +122,6 @@ class GmusicComponent(MediaPlayerDevice):
         self._source = "input_select." + config.get(CONF_SOURCE)
         
         self._entity_ids = []  ## media_players or speakers
-        
         self._playlists = []
         self._playlist_to_index = {}
         self._stations = []
@@ -144,14 +143,15 @@ class GmusicComponent(MediaPlayerDevice):
         self._unsub_tracker = None
         self._state = STATE_OFF
     
+
     @property
     def name(self):
-        """Return the name of the player."""
+        """ Return the name of the player. """
         return self._name
 
     @property
     def icon(self):
-        return 'mdi:play'
+        return 'mdi:music-circle'
 
     @property
     def supported_features(self):
@@ -160,46 +160,47 @@ class GmusicComponent(MediaPlayerDevice):
 
     @property
     def should_poll(self):
-        """No polling needed."""
+        """ No polling needed. """
         return False
 
     @property
     def state(self):
-        """Return the state of the device."""
+        """ Return the state of the device. """
         return self._state
 
     @property
     def is_volume_muted(self):
+        """ Return True if device is muted """
         return self._is_mute
 
     @property
     def is_on(self):
-        """Return True if device is on."""
+        """ Return True if device is on. """
         return self._playing
     
     @property
     def media_content_type(self):
-        """Content type of current playing media."""
+        """ Content type of current playing media. """
         return MEDIA_TYPE_MUSIC
    
     @property
     def media_title(self):
-        """Title of current playing media."""
+        """ Title of current playing media. """
         return self._track_name
 
     @property
     def media_artist(self):
-        """Artist of current playing media, music track only."""
+        """ Artist of current playing media """
         return self._track_artist
 
     @property
     def media_album_name(self):
-        """Album name of current playing media, music track only."""
+        """ Album name of current playing media """
         return self._track_album_name
   
     @property
     def media_image_url(self):
-        """Image url of current playing media."""
+        """ Image url of current playing media. """
         return self._track_album_cover
     
     @property
@@ -249,7 +250,6 @@ class GmusicComponent(MediaPlayerDevice):
         """Fire the off action."""
         self._playing = False
         self._state = STATE_OFF
-        #self._clear_track_meta()
         self._track_name = None
         self._track_artist = None
         self._track_album_name = None
@@ -270,7 +270,7 @@ class GmusicComponent(MediaPlayerDevice):
         self.schedule_update_ha_state()
         
     '''
-    def select_media_player(self):
+    def _select_media_player(self):
         self._player_id = "media_player."+self.get_state(self.select_player)
         ## Set callbacks for media player
         self.power_off = self.listen_state(self.power, self.boolean_power, new="off", duration="1")
@@ -278,7 +278,7 @@ class GmusicComponent(MediaPlayerDevice):
         self.show_meta = self.listen_state(self.show_info, self._player_id, new="playing")
         self.clear_meta = self.listen_state(self.clear_info, self._player_id, new="off", duration="1")
   
-    def unselect_media_player(self):
+    def _unselect_media_player(self):
         self.media_player_off(entity=None,attribute=None,old=None,new=None,kwargs=None)
         try: ## Cancel callbacks for media player
             self.cancel_listen_state(self.power_off)
@@ -342,9 +342,8 @@ class GmusicComponent(MediaPlayerDevice):
         self.hass.services.call(input_select.DOMAIN, input_select.SERVICE_SET_OPTIONS, data)               
 
 
-
     def _load_playlist(self):
-        """ load tracks from the selected playlist to the track_queue """
+        """ Load selected playlist to the track_queue """
         if not self._update_entity_ids():
             return        
         """ if source == Playlist """
@@ -373,7 +372,7 @@ class GmusicComponent(MediaPlayerDevice):
 
 
     def _load_station(self):
-        """ load tracks from the selected station to the track_queue """
+        """ Load selected station to the track_queue """
         if not self._update_entity_ids():
             return        
         """ if source == station """
@@ -405,7 +404,7 @@ class GmusicComponent(MediaPlayerDevice):
 
 
     def _get_track(self, entity_id=None, old_state=None, new_state=None, retry=3):
-        """ get a track from the track_queue """
+        """ Get a track and play it from the track_queue. """
         if not self._playing:
             return
         
@@ -420,13 +419,10 @@ class GmusicComponent(MediaPlayerDevice):
         if _track is None:
             self._turn_off_media_player() 
             return
-        
-        """ reset track if needed """
+        """ If source is a playlist, track is inside of track """
         if 'track' in _track:
             _track = _track['track']
-            self._track = _track
-        
-        """ get the track id """
+        """ Find the unique track id. """
         if 'trackId' in _track:
             _uid = _track['trackId']
         elif 'storeId' in _track:
@@ -504,7 +500,7 @@ class GmusicComponent(MediaPlayerDevice):
                 _LOGGER.error("Invalid source: (%s)", _option)
                 self._turn_off_media_player()
                 return
-
+    
     def media_pause(self, **kwargs):
         """ Send media pause command to media player """
         self._state = STATE_PAUSED
