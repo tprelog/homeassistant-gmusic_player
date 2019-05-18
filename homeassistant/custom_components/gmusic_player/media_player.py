@@ -13,8 +13,8 @@ import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 
 from homeassistant.const import (
-    ATTR_ENTITY_ID, EVENT_HOMEASSISTANT_START,
-    STATE_PLAYING, STATE_PAUSED, STATE_OFF, STATE_IDLE)
+    ATTR_ENTITY_ID, EVENT_HOMEASSISTANT_START, STATE_STANDBY, STATE_ON,
+    STATE_PLAYING, STATE_PAUSED, STATE_OFF, STATE_IDLE, STATE_PROBLEM)
 
 from homeassistant.components.media_player import (
     MediaPlayerDevice, PLATFORM_SCHEMA)
@@ -26,7 +26,7 @@ from homeassistant.components.media_player import (
     ATTR_MEDIA_CONTENT_ID, ATTR_MEDIA_CONTENT_TYPE, DOMAIN as DOMAIN_MP)
 
 from homeassistant.components.media_player.const import (
-    MEDIA_TYPE_MUSIC, SUPPORT_NEXT_TRACK, SUPPORT_PAUSE,
+    MEDIA_TYPE_MUSIC, SUPPORT_NEXT_TRACK, SUPPORT_PAUSE, SUPPORT_STOP, SUPPORT_PLAY_MEDIA,
     SUPPORT_PLAY, SUPPORT_PREVIOUS_TRACK, SUPPORT_SELECT_SOURCE, SUPPORT_VOLUME_MUTE,
     SUPPORT_VOLUME_SET, SUPPORT_VOLUME_STEP, SUPPORT_TURN_ON, SUPPORT_TURN_OFF)
 
@@ -35,6 +35,11 @@ import homeassistant.components.input_select as input_select
 
 # The domain of your component. Should be equal to the name of your component.
 DOMAIN = 'gmusic_player'
+
+SUPPORT_GMUSIC_PLAYER = SUPPORT_PAUSE | SUPPORT_VOLUME_STEP | SUPPORT_PLAY_MEDIA | \
+    SUPPORT_PREVIOUS_TRACK | SUPPORT_VOLUME_SET | SUPPORT_VOLUME_MUTE | \
+    SUPPORT_STOP | SUPPORT_PLAY | SUPPORT_TURN_ON | SUPPORT_TURN_OFF | \
+    SUPPORT_SELECT_SOURCE | SUPPORT_NEXT_TRACK
 
 CONF_USERNAME = 'user'
 CONF_PASSWORD = 'password'
@@ -47,12 +52,6 @@ CONF_TOKEN_PATH = 'token_path'
 
 DEFAULT_TOKEN_PATH = "./."
 
-SUPPORT_GMUSIC = SUPPORT_PAUSE | SUPPORT_VOLUME_STEP | \
-    SUPPORT_PREVIOUS_TRACK | SUPPORT_VOLUME_SET | SUPPORT_VOLUME_MUTE | \
-    SUPPORT_PLAY | SUPPORT_TURN_ON | SUPPORT_TURN_OFF | \
-    SUPPORT_SELECT_SOURCE | SUPPORT_NEXT_TRACK
-
-                  
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend = vol.Schema({
     DOMAIN: vol.Schema({
         vol.Required(CONF_USERNAME): cv.string,
@@ -155,8 +154,8 @@ class GmusicComponent(MediaPlayerDevice):
 
     @property
     def supported_features(self):
-        """Flag media player features that are supported."""
-        return SUPPORT_GMUSIC
+        """ Flag media player features that are supported. """
+        return SUPPORT_GMUSIC_PLAYER
 
     @property
     def should_poll(self):
@@ -257,18 +256,7 @@ class GmusicComponent(MediaPlayerDevice):
         self.schedule_update_ha_state()
         data = {ATTR_ENTITY_ID: self._entity_ids}
         self.hass.services.call(DOMAIN_MP, 'turn_off', data)
-    
-    def _turn_off_media_player(self):
-        """ from existing code """
-        self.turn_off()
-
-    def _clear_track_meta(self):
-        self._track_name = None
-        self._track_artist = None
-        self._track_album_name = None
-        self._track_album_cover = None
-        self.schedule_update_ha_state()
-        
+       
     '''
     def _select_media_player(self):
         self._player_id = "media_player."+self.get_state(self.select_player)
@@ -289,6 +277,10 @@ class GmusicComponent(MediaPlayerDevice):
             self.log("cancel callback exception!")
             pass
     '''
+    
+    def _turn_off_media_player(self):
+        """ from existing code """
+        self.turn_off()
 
     def _update_entity_ids(self):
         media_player = self.hass.states.get(self._media_player)
@@ -474,13 +466,16 @@ class GmusicComponent(MediaPlayerDevice):
         self.schedule_update_ha_state()
         self.hass.services.call(DOMAIN_MP, SERVICE_PLAY_MEDIA, data)
 
-    
-    def media_play_pause(self, **kwargs):
-        """Simulate play pause media player."""
-        if self._state == STATE_PLAYING:
-            self.media_pause()
-        else:
-            self.media_play()
+
+    def play_media(self, media_type, media_id):
+        if media_type == "station":
+             _LOGGER.error("(%s): (%s)",  media_type, media_id)
+            #data = media_id
+            #self.hass.services.call(input_select, select_option, media_id)        
+            #self._load_station
+        elif media_type == "playlist":
+            #self._load_playlist(media_id)
+            _LOGGER.error("(%s): (%s)",  media_type, media_id)
 
     def media_play(self, **kwargs):
         """Send play command."""
@@ -508,11 +503,12 @@ class GmusicComponent(MediaPlayerDevice):
         data = {ATTR_ENTITY_ID: self._entity_ids}
         self.hass.services.call(DOMAIN_MP, 'media_pause', data)
     
-    def media_next_track(self, **kwargs):
-        """Send next track command."""
-        if self._state == STATE_PAUSED or self._state == STATE_PLAYING:
-            self.hass.states.set(self._entity_ids, STATE_IDLE)
-            self.schedule_update_ha_state()
+    def media_play_pause(self, **kwargs):
+        """Simulate play pause media player."""
+        if self._state == STATE_PLAYING:
+            self.media_pause()
+        else:
+            self.media_play()
 
     def media_previous_track(self, **kwargs):
         """Send the previous track command."""
@@ -521,16 +517,20 @@ class GmusicComponent(MediaPlayerDevice):
             self.hass.states.set(self._entity_ids, STATE_IDLE)
             self.schedule_update_ha_state()
     
-
-    def mute_volume(self, mute):
-        """Send mute command."""
-        #self._client.set_volume(0)
-        if self._is_mute == False:
-            self._is_mute = True
-        else:
-            self._is_mute = False
-        data = {ATTR_ENTITY_ID: self._entity_ids, "is_volume_muted": self._is_mute}
-        self.hass.services.call(DOMAIN_MP, 'volume_mute', data)
+    def media_next_track(self, **kwargs):
+        """Send next track command."""
+        if self._state == STATE_PAUSED or self._state == STATE_PLAYING:
+            self.hass.states.set(self._entity_ids, STATE_IDLE)
+            self.schedule_update_ha_state()
+    
+    def media_stop(self, **kwargs):
+        """Send stop command."""
+        self._state = STATE_IDLE
+        self._playing = False
+        self._track_artist = None
+        self._track_album_name = None
+        self._track_name = None
+        self._track_album_cover = None
         self.schedule_update_ha_state()
 
     def set_volume_level(self, volume):
@@ -552,3 +552,14 @@ class GmusicComponent(MediaPlayerDevice):
         # self._client.set_volume(newvolume)
         data = {ATTR_ENTITY_ID: self._entity_ids}
         self.hass.services.call(DOMAIN_MP, 'volume_down', data)
+
+    def mute_volume(self, mute):
+        """Send mute command."""
+        #self._client.set_volume(0)
+        if self._is_mute == False:
+            self._is_mute = True
+        else:
+            self._is_mute = False
+        self.schedule_update_ha_state()
+        data = {ATTR_ENTITY_ID: self._entity_ids, "is_volume_muted": self._is_mute}
+        self.hass.services.call(DOMAIN_MP, 'volume_mute', data)
