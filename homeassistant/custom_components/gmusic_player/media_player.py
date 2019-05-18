@@ -167,14 +167,17 @@ class GmusicComponent(MediaPlayerDevice):
         self._track_artist = None
         self._track_album_name = None
         self._track_album_cover = None
+        self._track_artist_cover = None
         
         hass.bus.listen_once(EVENT_HOMEASSISTANT_START, self._update_playlists)
         hass.bus.listen_once(EVENT_HOMEASSISTANT_START, self._update_stations)
         
         self._playing = False
         self._is_mute = False
+        self._volume = None
         self._unsub_tracker = None
         self._state = STATE_OFF
+        self._attributes = {}
     
 
     @property
@@ -200,6 +203,11 @@ class GmusicComponent(MediaPlayerDevice):
     def state(self):
         """ Return the state of the device. """
         return self._state
+    
+    @property
+    def device_state_attributes(self):
+        """ Return the device state attributes. """
+        return self._attributes
 
     @property
     def is_volume_muted(self):
@@ -240,12 +248,12 @@ class GmusicComponent(MediaPlayerDevice):
     def media_image_remotely_accessible(self):
         return True
     
-    '''
     @property
     def volume_level(self):
       """Volume level of the media player (0..1)."""
       return self._volume
 
+    '''
     @property
     def source(self):
         """Return  current source name."""
@@ -343,7 +351,11 @@ class GmusicComponent(MediaPlayerDevice):
             if len(name) < 1:
                 continue
             self._playlist_to_index[name] = idx
-        data = {"options": list(self._playlist_to_index.keys()), "entity_id": self._playlist}
+        
+        playlists = list(self._playlist_to_index.keys())
+        self._attributes['playlists'] = playlists
+        
+        data = {"options": list(playlists), "entity_id": self._playlist}
         self.hass.services.call(input_select.DOMAIN, input_select.SERVICE_SET_OPTIONS, data)
 
     def _update_stations(self, now=None):
@@ -362,9 +374,12 @@ class GmusicComponent(MediaPlayerDevice):
                 continue
             if library == True:
                 self._station_to_index[name] = idx
-        options = list(self._station_to_index.keys())
-        options.insert(0,"I'm Feeling Lucky")
-        data = {"options": list(options), "entity_id": self._station}
+        
+        stations = list(self._station_to_index.keys())
+        stations.insert(0,"I'm Feeling Lucky")
+        self._attributes['stations'] = stations
+        
+        data = {"options": list(stations), "entity_id": self._station}
         self.hass.services.call(input_select.DOMAIN, input_select.SERVICE_SET_OPTIONS, data)               
 
 
@@ -462,19 +477,29 @@ class GmusicComponent(MediaPlayerDevice):
                 return
             return self._get_track(retry=retry-1)
         
-        """ get track meta_data """
-        if 'artist' in _track:
-            self._track_artist = _track['artist']
-        if 'album' in _track: 
-            self._track_album_name = _track['album']
+        """ If available, get track information. """
         if 'title' in _track: 
             self._track_name = _track['title']
+        else:
+            self._track_name = None        
+        if 'artist' in _track:
+            self._track_artist = _track['artist']
+        else:
+            self._track_artist = None
+        if 'album' in _track: 
+            self._track_album_name = _track['album']
+        else:
+            self._track_album_name = None
         if 'albumArtRef' in _track:
             _album_art_ref = _track['albumArtRef']   ## returns a list
             self._track_album_cover = _album_art_ref[0]['url'] ## of dic
+        else:
+            self._track_album_cover = None
         if 'artistArtRef' in _track:
             _artist_art_ref = _track['artistArtRef']
-            _cover2 = _artist_art_ref[0]['url']         
+            self._track_artist_cover = _artist_art_ref[0]['url']
+        else:
+            self._track_artist_cover = None
         
         self._play_track(_uid, retry)
 
