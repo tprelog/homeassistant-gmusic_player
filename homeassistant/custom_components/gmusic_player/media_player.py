@@ -393,23 +393,17 @@ class GmusicComponent(MediaPlayerDevice):
             _LOGGER.error("%s is not a valid input_select entity.", self._playlist)
             return  
         
-        option = _playlist_id.state        
-        idx = self._playlist_to_index.get(option)
+        playlist = _playlist_id.state        
+        idx = self._playlist_to_index.get(playlist)
         if idx is None:
             self._turn_off_media_player()
             return
-        
-        self._tracks = self._playlists[idx]['tracks']
+        self._tracks = self._playlists[idx]['tracks']        
         
         #self.log("Loading [{}] Tracks From: {}".format(len(self._tracks), _playlist_id))
         random.shuffle(self._tracks)
         self._next_track_no = -1
-        """ Playlist End"""
-        
-        self._playing = True
-        self._get_track()        
-        ## NOTE: Move this to connect or power on
-        self._unsub_tracker = track_state_change(self.hass, self._entity_ids, self._get_track, from_state='playing', to_state='idle')
+        self._play()       
 
 
     def _load_station(self):
@@ -422,11 +416,11 @@ class GmusicComponent(MediaPlayerDevice):
             _LOGGER.error("%s is not a valid input_select entity.", self._station)
             return
         
-        _option = _station_id.state        
-        if _option == "I'm Feeling Lucky":
+        station = _station_id.state        
+        if station == "I'm Feeling Lucky":
             self._tracks = self._api.get_station_tracks('IFL', num_tracks=100)
         else:
-            idx = self._station_to_index.get(_option)
+            idx = self._station_to_index.get(station)
             if idx is None:
                 self._turn_off_media_player()
                 return
@@ -435,26 +429,26 @@ class GmusicComponent(MediaPlayerDevice):
         
         # self.log("Loading [{}] Tracks From: {}".format(len(self._tracks), _station_id))
         self._next_track_no = -1
-        """ station end """
-        
-        self._playing = True
-        self._get_track()
-        ## NOTE: Move this to connect or power on
-        self._unsub_tracker = track_state_change(self.hass, self._entity_ids, self._get_track, from_state='playing', to_state='idle')
+        self._play()
 
+    def _play(self):
+        self._playing = True
+        self._unsub_tracker = track_state_change(self.hass, self._entity_ids, self._get_track, from_state='playing', to_state='idle')
+        self._get_track()
 
 
     def _get_track(self, entity_id=None, old_state=None, new_state=None, retry=3):
         """ Get a track and play it from the track_queue. """
         if not self._playing:
             return
+        _track = None
         
-        self._track = ''
+        _total_tracks = len(self._tracks)
         self._next_track_no = self._next_track_no + 1
         
-        if self._next_track_no >= len(self._tracks):
-            self._next_track_no = 0         ## Restart curent playlist (Loop)
+        if self._next_track_no >= _total_tracks:
             random.shuffle(self._tracks)    ## (re)Shuffle on Loop
+            self._next_track_no = 0         ## Restart curent playlist (Loop)
             
         _track = self._tracks[self._next_track_no]
         if _track is None:
@@ -465,11 +459,11 @@ class GmusicComponent(MediaPlayerDevice):
             _track = _track['track']
         """ Find the unique track id. """
         if 'trackId' in _track:
-            _uid = _track['trackId']
+            uid = _track['trackId']
         elif 'storeId' in _track:
-            _uid = _track['storeId']
+            uid = _track['storeId']
         elif 'id' in _track:
-            _uid = _track['id']
+            uid = _track['id']
         else:
             _LOGGER.error("Failed to get ID for track: (%s)", _track)
             if retry < 1:
@@ -501,11 +495,7 @@ class GmusicComponent(MediaPlayerDevice):
         else:
             self._track_artist_cover = None
         
-        self._play_track(_uid, retry)
-
-    
-    def _play_track(self, uid, retry):
-        """ get the stream URL and play track on speakers """
+        """ Get the stream URL play on media_player """
         try:
             _url = self._api.get_stream_url(uid)        
         except Exception as err:
@@ -545,14 +535,14 @@ class GmusicComponent(MediaPlayerDevice):
             self.hass.services.call(DOMAIN_MP, 'media_play', data)
         else:
             _source = self.hass.states.get(self._source)
-            _option = _source.state
-            if _option == 'Playlist':
+            source = _source.state
+            if source == 'Playlist':
                 self._load_playlist()
-            elif _option == 'Station':
+            elif source == 'Station':
                 self._load_station()
             else:
-                _LOGGER.error("Invalid source: (%s)", _option)
-                self._turn_off_media_player()
+                _LOGGER.error("Invalid source: (%s)", source)
+                self.turn_off()
                 return
     
     def media_pause(self, **kwargs):
@@ -591,6 +581,9 @@ class GmusicComponent(MediaPlayerDevice):
         self._track_name = None
         self._track_album_cover = None
         self.schedule_update_ha_state()
+        data = {ATTR_ENTITY_ID: self._entity_ids}
+        self.hass.services.call(DOMAIN_MP, 'media_stop', data)        
+    
 
     def set_volume_level(self, volume):
         """Set volume level."""
