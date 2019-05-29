@@ -1,5 +1,5 @@
 """
-Support Google Music as a media player
+Attempting to support Google Music as a media player
 """
 import asyncio
 import logging
@@ -11,35 +11,35 @@ from datetime import timedelta
 
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.condition import state
+from homeassistant.helpers.event import track_state_change
+from homeassistant.helpers.event import call_later
+
+import homeassistant.components.input_select as input_select
 
 from homeassistant.const import (
-    ATTR_ENTITY_ID, EVENT_HOMEASSISTANT_START, STATE_STANDBY, STATE_ON,
-    STATE_PLAYING, STATE_PAUSED, STATE_OFF, STATE_IDLE, STATE_PROBLEM)
+    ATTR_ENTITY_ID, EVENT_HOMEASSISTANT_START,
+    STATE_PLAYING, STATE_PAUSED, STATE_OFF, STATE_IDLE)
 
 from homeassistant.components.media_player import (
-    MediaPlayerDevice, PLATFORM_SCHEMA)
-
-from homeassistant.components.media_player import (
-    SERVICE_TURN_ON, SERVICE_TURN_OFF,
-    SERVICE_PLAY_MEDIA, SERVICE_MEDIA_PAUSE,
+    MediaPlayerDevice, PLATFORM_SCHEMA, SERVICE_TURN_ON, SERVICE_TURN_OFF,
+    SERVICE_PLAY_MEDIA, SERVICE_MEDIA_PAUSE, ATTR_MEDIA_VOLUME_LEVEL,
     SERVICE_VOLUME_UP, SERVICE_VOLUME_DOWN, SERVICE_VOLUME_SET,
     ATTR_MEDIA_CONTENT_ID, ATTR_MEDIA_CONTENT_TYPE, DOMAIN as DOMAIN_MP)
 
 from homeassistant.components.media_player.const import (
-    MEDIA_TYPE_MUSIC, SUPPORT_NEXT_TRACK, SUPPORT_PAUSE, SUPPORT_STOP, SUPPORT_PLAY_MEDIA,
-    SUPPORT_PLAY, SUPPORT_PREVIOUS_TRACK, SUPPORT_SELECT_SOURCE, SUPPORT_VOLUME_MUTE,
-    SUPPORT_VOLUME_SET, SUPPORT_VOLUME_STEP, SUPPORT_TURN_ON, SUPPORT_TURN_OFF)
-
-from homeassistant.helpers.event import track_state_change #, track_time_change
-import homeassistant.components.input_select as input_select
+    MEDIA_TYPE_MUSIC, SUPPORT_STOP, SUPPORT_PLAY, SUPPORT_PAUSE,
+    SUPPORT_PLAY_MEDIA, SUPPORT_PREVIOUS_TRACK, SUPPORT_NEXT_TRACK,
+    SUPPORT_VOLUME_MUTE, SUPPORT_VOLUME_SET, SUPPORT_VOLUME_STEP,
+    SUPPORT_TURN_ON, SUPPORT_TURN_OFF, SUPPORT_SHUFFLE_SET, SUPPORT_SELECT_SOURCE)
 
 # The domain of your component. Should be equal to the name of your component.
 DOMAIN = 'gmusic_player'
 
-SUPPORT_GMUSIC_PLAYER = SUPPORT_PAUSE | SUPPORT_VOLUME_STEP | SUPPORT_PLAY_MEDIA | \
-    SUPPORT_PREVIOUS_TRACK | SUPPORT_VOLUME_SET | SUPPORT_VOLUME_MUTE | \
-    SUPPORT_STOP | SUPPORT_PLAY | SUPPORT_TURN_ON | SUPPORT_TURN_OFF | \
-    SUPPORT_SELECT_SOURCE | SUPPORT_NEXT_TRACK
+SUPPORT_GMUSIC_PLAYER = SUPPORT_TURN_ON | SUPPORT_TURN_OFF | SUPPORT_PLAY_MEDIA | \
+    SUPPORT_PLAY | SUPPORT_PAUSE | SUPPORT_STOP | SUPPORT_SELECT_SOURCE | \
+    SUPPORT_VOLUME_SET | SUPPORT_VOLUME_STEP | SUPPORT_VOLUME_MUTE | \
+    SUPPORT_PREVIOUS_TRACK | SUPPORT_NEXT_TRACK | SUPPORT_SHUFFLE_SET
 
 CONF_USERNAME = 'user'
 CONF_DEVICE_ID = 'device_id'
@@ -51,6 +51,8 @@ CONF_SPEAKERS = 'media_player'
 CONF_SOURCE = 'source'
 CONF_PLAYLISTS = 'playlist'
 CONF_STATIONS = 'station'
+CONF_SHUFFLE = 'shuffle'
+CONF_SHUFFLE_MODE = 'shuffle_mode'
 
 DEFAULT_DEVICE_ID = 'not_set'
 DEFAULT_LOGIN_TYPE = 'not_set'
@@ -61,6 +63,8 @@ DEFAULT_SPEAKERS = 'not_set'
 DEFAULT_SOURCE = 'not_set'
 DEFAULT_PLAYLISTS = 'not_set'
 DEFAULT_STATIONS = 'not_set'
+DEFAULT_SHUFFLE = True
+DEFAULT_SHUFFLE_MODE = 1
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend = vol.Schema({
     DOMAIN: vol.Schema({
@@ -74,7 +78,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend = vol.Schema({
         vol.Optional(CONF_SOURCE, default=DEFAULT_SOURCE): cv.string,
         vol.Optional(CONF_PLAYLISTS, default=DEFAULT_PLAYLISTS): cv.string,
         vol.Optional(CONF_STATIONS, default=DEFAULT_STATIONS): cv.string,
-
     })
 }, extra=vol.ALLOW_EXTRA)
 
@@ -82,7 +85,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend = vol.Schema({
 _LOGGER = logging.getLogger(__name__)
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
-    """Setup the Gmusic player."""
+    """ Setup Gmusic player. """
     add_devices([GmusicComponent(hass, config)])
     return True
 
@@ -108,13 +111,13 @@ class GmusicComponent(MediaPlayerDevice):
                         return True
                 # Prevent further execution in case we failed with the login-process
                 raise Exception("Legacy login failed! Please check logs for any gmusicapi related WARNING")
-        
+
         self.hass = hass
         self._api = GMusic()
         
         _login_type = config.get(CONF_LOGIN_TYPE, DEFAULT_LOGIN_TYPE)
         _device_id = config.get(CONF_DEVICE_ID)
-        
+
         if _login_type == 'legacy':
             _authtoken = config.get(CONF_TOKEN_PATH, DEFAULT_TOKEN_PATH) + "gmusic_authtoken"
             if os.path.isfile(_authtoken):
@@ -130,7 +133,7 @@ class GmusicComponent(MediaPlayerDevice):
                 return False
             with open(_authtoken, 'wb') as f:
                 pickle.dump(self._api.session._authtoken, f)
-            
+
         elif _login_type == 'oauth':
             _oauth_cred = config.get(CONF_OAUTH_CRED, DEFAULT_OAUTH_CRED)
             if os.path.isfile(_oauth_cred):
@@ -142,11 +145,10 @@ class GmusicComponent(MediaPlayerDevice):
                     raise Exception("Failed oauth login, check https://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html#gmusicapi.clients.Mobileclient.perform_oauth")
             else:
                 raise Exception("Invalid - Not a file! oauth_cred: ", _oauth_cred)
-            
+
         else:
             raise Exception("Invalid! login_type: ", _login_type)
-        
-        
+
         self._name = "gmusic_player"
         ## NOTE: Consider rename here. Example 'self._playlist' -->>> 'self._playlist_select' or 'self._select_playlist'
         self._playlist = "input_select." + config.get(CONF_PLAYLISTS)
@@ -203,7 +205,7 @@ class GmusicComponent(MediaPlayerDevice):
     def state(self):
         """ Return the state of the device. """
         return self._state
-    
+
     @property
     def device_state_attributes(self):
         """ Return the device state attributes. """
@@ -218,12 +220,12 @@ class GmusicComponent(MediaPlayerDevice):
     def is_on(self):
         """ Return True if device is on. """
         return self._playing
-    
+
     @property
     def media_content_type(self):
         """ Content type of current playing media. """
         return MEDIA_TYPE_MUSIC
-   
+
     @property
     def media_title(self):
         """ Title of current playing media. """
@@ -238,12 +240,12 @@ class GmusicComponent(MediaPlayerDevice):
     def media_album_name(self):
         """ Album name of current playing media """
         return self._track_album_name
-  
+
     @property
     def media_image_url(self):
         """ Image url of current playing media. """
         return self._track_album_cover
-    
+
     @property
     def media_image_remotely_accessible(self):
         return True
@@ -253,15 +255,6 @@ class GmusicComponent(MediaPlayerDevice):
       """Volume level of the media player (0..1)."""
       return self._volume
 
-    '''
-    @property
-    def source(self):
-        """Return  current source name."""
-        source_name = "Unknown"
-        client = self._client
-        if client.active_playlist_id in client.playlists:
-            source_name = client.playlists[client.active_playlist_id]['name']
-        return source_name
 
     @property
     def source_list(self):
@@ -339,9 +332,6 @@ class GmusicComponent(MediaPlayerDevice):
 
     def _update_playlists(self, now=None):
         """ Sync playlists from Google Music library """
-        if self.hass.states.get(self._playlist) is None:
-            _LOGGER.error("(%s) is not a valid input_select entity.", self._playlist)
-            return
         self._playlist_to_index = {}
         self._playlists = self._api.get_all_user_playlist_contents()
         idx = -1
@@ -351,18 +341,16 @@ class GmusicComponent(MediaPlayerDevice):
             if len(name) < 1:
                 continue
             self._playlist_to_index[name] = idx
-        
+
         playlists = list(self._playlist_to_index.keys())
         self._attributes['playlists'] = playlists
-        
+
         data = {"options": list(playlists), "entity_id": self._playlist}
         self.hass.services.call(input_select.DOMAIN, input_select.SERVICE_SET_OPTIONS, data)
 
+
     def _update_stations(self, now=None):
         """ Sync stations from Google Music library """
-        if self.hass.states.get(self._station) is None:
-            _LOGGER.error("(%s) is not a valid input_select entity.", self._station)
-            return
         self._station_to_index = {}
         self._stations = self._api.get_all_stations()
         idx = -1
@@ -374,11 +362,11 @@ class GmusicComponent(MediaPlayerDevice):
                 continue
             if library == True:
                 self._station_to_index[name] = idx
-        
+
         stations = list(self._station_to_index.keys())
         stations.insert(0,"I'm Feeling Lucky")
         self._attributes['stations'] = stations
-        
+
         data = {"options": list(stations), "entity_id": self._station}
         self.hass.services.call(input_select.DOMAIN, input_select.SERVICE_SET_OPTIONS, data)               
 
@@ -476,17 +464,16 @@ class GmusicComponent(MediaPlayerDevice):
                 self._turn_off_media_player()
                 return
             return self._get_track(retry=retry-1)
-        
         """ If available, get track information. """
-        if 'title' in _track: 
+        if 'title' in _track:
             self._track_name = _track['title']
         else:
-            self._track_name = None        
+            self._track_name = None
         if 'artist' in _track:
             self._track_artist = _track['artist']
         else:
             self._track_artist = None
-        if 'album' in _track: 
+        if 'album' in _track:
             self._track_album_name = _track['album']
         else:
             self._track_album_name = None
@@ -500,10 +487,9 @@ class GmusicComponent(MediaPlayerDevice):
             self._track_artist_cover = _artist_art_ref[0]['url']
         else:
             self._track_artist_cover = None
-        
-        """ Get the stream URL play on media_player """
+        """ Get the stream URL and play on media_player """
         try:
-            _url = self._api.get_stream_url(uid)        
+            _url = self._api.get_stream_url(uid)
         except Exception as err:
             _LOGGER.error("Failed to get URL for track: (%s)", uid)
             if retry < 1:
@@ -536,7 +522,7 @@ class GmusicComponent(MediaPlayerDevice):
         """Send play command."""
         if self._state == STATE_PAUSED:
             self._state = STATE_PLAYING
-            self.schedule_update_ha_state()  
+            self.schedule_update_ha_state()
             data = {ATTR_ENTITY_ID: self._entity_ids}
             self.hass.services.call(DOMAIN_MP, 'media_play', data)
         else:
@@ -550,14 +536,14 @@ class GmusicComponent(MediaPlayerDevice):
                 _LOGGER.error("Invalid source: (%s)", source)
                 self.turn_off()
                 return
-    
+
     def media_pause(self, **kwargs):
         """ Send media pause command to media player """
         self._state = STATE_PAUSED
         self.schedule_update_ha_state()
         data = {ATTR_ENTITY_ID: self._entity_ids}
         self.hass.services.call(DOMAIN_MP, 'media_pause', data)
-    
+
     def media_play_pause(self, **kwargs):
         """Simulate play pause media player."""
         if self._state == STATE_PLAYING:
@@ -613,7 +599,6 @@ class GmusicComponent(MediaPlayerDevice):
 
     def mute_volume(self, mute):
         """Send mute command."""
-        #self._client.set_volume(0)
         if self._is_mute == False:
             self._is_mute = True
         else:
