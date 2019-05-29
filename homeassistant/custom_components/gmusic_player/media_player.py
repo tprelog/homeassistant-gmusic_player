@@ -260,66 +260,51 @@ class GmusicComponent(MediaPlayerDevice):
       return self._volume
 
 
-    @property
-    def source_list(self):
-        """List of available input sources."""
-        source_names = [s["name"] for s in self._client.playlists.values()]
-        return source_names
-
-    def select_source(self, source):
-        """Select input source."""
-        client = self._client
-        sources = [s for s in client.playlists.values() if s['name'] == source]
-        if len(sources) == 1:
-            client.change_song(sources[0]['id'], 0)
-    '''
-
-    def turn_on(self, **kwargs):
-        """Fire the on action."""
+    def turn_on(self, *args, **kwargs):
+        """ Turn on the selected media_player from input_select """
         self._playing = False
-        self._state = STATE_IDLE
         if not self._update_entity_ids():
-            return         
+            return
+        _player = self.hass.states.get(self._entity_ids)
+        data = {ATTR_ENTITY_ID: _player.entity_id}
+        if _player.state == STATE_OFF:
+            self._unsub_tracker = track_state_change(self.hass, _player.entity_id, self._sync_player)
+            self._turn_on_media_player(data)
+        elif _player.state != STATE_OFF:
+            self._turn_off_media_player(data)
+            call_later(self.hass, 1, self.turn_on)
+
+    def _turn_on_media_player(self, data=None):
+        """Fire the on action."""
+        if data is None:
+            data = {ATTR_ENTITY_ID: self._entity_ids}
+        self._state = STATE_IDLE
         self.schedule_update_ha_state()
-        data = {ATTR_ENTITY_ID: self._entity_ids}
         self.hass.services.call(DOMAIN_MP, 'turn_on', data)
-    
-    def turn_off(self, **kwargs):
-        """Fire the off action."""
+
+
+    def turn_off(self, entity_id=None, old_state=None, new_state=None, **kwargs):
+        """ Turn off the selected media_player """
         self._playing = False
-        self._state = STATE_OFF
         self._track_name = None
         self._track_artist = None
         self._track_album_name = None
         self._track_album_cover = None
+
+        _player = self.hass.states.get(self._entity_ids)
+        data = {ATTR_ENTITY_ID: _player.entity_id}
+        self._turn_off_media_player(data)
+
+    def _turn_off_media_player(self, data=None):
+        """Fire the off action."""
+        self._playing = False
+        self._state = STATE_OFF
+        self._attributes['_player_state'] = STATE_OFF
         self.schedule_update_ha_state()
-        data = {ATTR_ENTITY_ID: self._entity_ids}
+        if data is None:
+            data = {ATTR_ENTITY_ID: self._entity_ids}
         self.hass.services.call(DOMAIN_MP, 'turn_off', data)
-       
-    '''
-    def _select_media_player(self):
-        self._player_id = "media_player."+self.get_state(self.select_player)
-        ## Set callbacks for media player
-        self.power_off = self.listen_state(self.power, self.boolean_power, new="off", duration="1")
-        self.advance_track = self.listen_state(self.get_track, self._player_id, new="idle",  duration="2")
-        self.show_meta = self.listen_state(self.show_info, self._player_id, new="playing")
-        self.clear_meta = self.listen_state(self.clear_info, self._player_id, new="off", duration="1")
-  
-    def _unselect_media_player(self):
-        self.media_player_off(entity=None,attribute=None,old=None,new=None,kwargs=None)
-        try: ## Cancel callbacks for media player
-            self.cancel_listen_state(self.power_off)
-            self.cancel_listen_state(self.advance_track)
-            self.cancel_listen_state(self.show_meta)
-            self.cancel_listen_state(self.clear_meta)
-        except:
-            self.log("cancel callback exception!")
-            pass
-    '''
-    
-    def _turn_off_media_player(self):
-        """ from existing code """
-        self.turn_off()
+
 
     def _update_entity_ids(self):
         """ sets the current media_player from input_select """
