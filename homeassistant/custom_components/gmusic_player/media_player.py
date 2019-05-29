@@ -400,7 +400,7 @@ class GmusicComponent(MediaPlayerDevice):
         self.hass.services.call(input_select.DOMAIN, input_select.SERVICE_SET_OPTIONS, data)
 
 
-    def _load_playlist(self):
+    def _load_playlist(self, playlist=None):
         """ Load selected playlist to the track_queue """
         if not self._update_entity_ids():
             return
@@ -408,57 +408,56 @@ class GmusicComponent(MediaPlayerDevice):
         _playlist_id = self.hass.states.get(self._playlist)
         if _playlist_id is None:
             _LOGGER.error("(%s) is not a valid input_select entity.", self._playlist)
-            return  
-        
-        playlist = _playlist_id.state        
+            return
+        if playlist is None:
+            playlist = _playlist_id.state
         idx = self._playlist_to_index.get(playlist)
         if idx is None:
             _LOGGER.error("playlist to index is none!")
             self._turn_off_media_player()
             return
-        self._tracks = self._playlists[idx]['tracks']        
-        
+        self._tracks = None
+        self._tracks = self._playlists[idx]['tracks']
+        self._total_tracks = len(self._tracks)
         #self.log("Loading [{}] Tracks From: {}".format(len(self._tracks), _playlist_id))
         if self._shuffle and self._shuffle_mode != 2:
             random.shuffle(self._tracks)
         self._play()
 
 
-    def _load_station(self):
+    def _load_station(self, station=None):
         """ Load selected station to the track_queue """
+        self._total_tracks = 100
         if not self._update_entity_ids():
-            return        
+            return
         """ if source == station """
+        self._tracks = None
         _station_id = self.hass.states.get(self._station)
         if _station_id is None:
             _LOGGER.error("(%s) is not a valid input_select entity.", self._station)
             return
-        
-        station = _station_id.state        
+        if station is None:
+            station = _station_id.state
         if station == "I'm Feeling Lucky":
-            self._tracks = self._api.get_station_tracks('IFL', num_tracks=100)
+            self._tracks = self._api.get_station_tracks('IFL', num_tracks = self._total_tracks)
         else:
+            idx = None
             idx = self._station_to_index.get(station)
             if idx is None:
                 self._turn_off_media_player()
                 return
             _id = self._stations[idx]['id']
-            self._tracks = self._api.get_station_tracks(_id, num_tracks=100)
-        
+            self._tracks = self._api.get_station_tracks(_id, num_tracks = self._total_tracks)
         # self.log("Loading [{}] Tracks From: {}".format(len(self._tracks), _station_id))
-        self._next_track_no = -1
         self._play()
 
     def _play(self):
         self._playing = True
-        self._unsub_tracker = track_state_change(self.hass, self._entity_ids, self._get_track, from_state='playing', to_state='idle')
+        self._next_track_no = -1
         self._get_track()
-
 
     def _get_track(self, entity_id=None, old_state=None, new_state=None, retry=3):
         """ Get a track and play it from the track_queue. """
-        if not self._playing:
-            return
         _track = None
         if self._shuffle and self._shuffle_mode != 1:
             self._next_track_no = random.randrange(self._total_tracks) - 1
@@ -470,16 +469,18 @@ class GmusicComponent(MediaPlayerDevice):
         try:
             _track = self._tracks[self._next_track_no]
         except IndexError:
-            _LOGGER.error("Out of range! Number of tracks in track_queue == (%s)", _total_tracks)
-            self._turn_off_media_player() 
-            
+            _LOGGER.error("Out of range! Number of tracks in track_queue == (%s)", self._total_tracks)
+            self._turn_off_media_player()
+            return
         if _track is None:
-            self._turn_off_media_player() 
+            _LOGGER.error("_track is None!")
+            self._turn_off_media_player()
             return
         """ If source is a playlist, track is inside of track """
         if 'track' in _track:
             _track = _track['track']
         """ Find the unique track id. """
+        uid = ''
         if 'trackId' in _track:
             uid = _track['trackId']
         elif 'storeId' in _track:
@@ -534,17 +535,39 @@ class GmusicComponent(MediaPlayerDevice):
         self.hass.services.call(DOMAIN_MP, SERVICE_PLAY_MEDIA, data)
 
 
-    def play_media(self, media_type, media_id):
-        if media_type == "station":
-             _LOGGER.error("(%s): (%s)",  media_type, media_id)
-            #data = media_id
-            #self.hass.services.call(input_select, select_option, media_id)        
-            #self._load_station
-        elif media_type == "playlist":
-            #self._load_playlist(media_id)
-            _LOGGER.error("(%s): (%s)",  media_type, media_id)
+    def play_media(self, media_type, media_id, **kwargs):
+        if not self._update_entity_ids():
+            return
+        _player = self.hass.states.get(self._entity_ids)
 
-    def media_play(self, **kwargs):
+        if media_type == "station":
+            _source = {"option":"Station", "entity_id": self._source}
+            _option = {"option": media_id, "entity_id": self._station}
+            self.hass.services.call(input_select.DOMAIN, input_select.SERVICE_SELECT_OPTION, _source)
+            self.hass.services.call(input_select.DOMAIN, input_select.SERVICE_SELECT_OPTION, _option)
+        elif media_type == "playlist":
+            _source = {"option":"Playlist", "entity_id": self._source}
+            _option = {"option": media_id, "entity_id": self._playlist}
+            self.hass.services.call(input_select.DOMAIN, input_select.SERVICE_SELECT_OPTION, _source)
+            self.hass.services.call(input_select.DOMAIN, input_select.SERVICE_SELECT_OPTION, _option)
+        else:
+            _LOGGER.error("Invalid: (%s) --> media_types are 'station' or 'playlist'.", media_type)
+            return
+
+        if self._playing == True:
+            self.media_stop()
+            self.media_play()
+        elif self._playing == False and self._state == STATE_OFF:
+            if _player.state == STATE_OFF:
+                self.turn_on()
+            else:
+                data = {ATTR_ENTITY_ID: _player.entity_id}
+                self._turn_off_media_player(data)
+                call_later(self.hass, 1, self.turn_on)
+        else:
+            _LOGGER.error("self._state is: (%s).", self._state)
+
+    def media_play(self, entity_id=None, old_state=None, new_state=None, **kwargs):
         """Send play command."""
         if self._state == STATE_PAUSED:
             self._state = STATE_PLAYING
@@ -579,17 +602,15 @@ class GmusicComponent(MediaPlayerDevice):
 
     def media_previous_track(self, **kwargs):
         """Send the previous track command."""
-        if self._state == STATE_PAUSED or self._state == STATE_PLAYING:
-            self._next_track_no = self._next_track_no - 2
-            self.hass.states.set(self._entity_ids, STATE_IDLE)
-            self.schedule_update_ha_state()
-    
+        if self._playing:
+            self._next_track_no = max(self._next_track_no - 2, -1)
+            self._get_track()
+
     def media_next_track(self, **kwargs):
         """Send next track command."""
-        if self._state == STATE_PAUSED or self._state == STATE_PLAYING:
-            self.hass.states.set(self._entity_ids, STATE_IDLE)
-            self.schedule_update_ha_state()
-    
+        if self._playing:
+            self._get_track()
+
     def media_stop(self, **kwargs):
         """Send stop command."""
         self._state = STATE_IDLE
