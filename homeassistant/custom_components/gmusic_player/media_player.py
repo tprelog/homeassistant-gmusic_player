@@ -321,6 +321,39 @@ class GmusicComponent(MediaPlayerDevice):
         return True
 
 
+    def _sync_player(self, entity_id=None, old_state=None, new_state=None):
+        """ Perform actions based on the state of the selected media_player """
+        # self._unsub_tracker = track_state_change(self.hass, self._entity_ids, self._sync_player)
+        if not self._playing:
+            return
+        _player = self.hass.states.get(self._entity_ids)
+
+        """ full state of device _player, include attributes. """
+        #self._attributes['_player_full'] = _player
+
+        """ entity_id of _player. """
+        _player_id = _player.entity_id
+        self._attributes['_player_id'] = _player_id
+
+        """ _player "friendley_name" """
+        _player_friendly = _player.attributes['friendly_name']
+        self._attributes['_player_friendly'] = _player_friendly
+
+        """ _player state - Example [playing -or- idle]. """
+        _player_state = _player.state
+        self._attributes['_player_state'] = _player_state
+
+        """ Set new volume if it has been changed on the _player """
+        if 'volume_level' in _player.attributes:
+            self._volume = round(_player.attributes['volume_level'],2)
+
+        if _player.state == 'off':
+            self._state = STATE_OFF
+            self.turn_off()
+
+        self.schedule_update_ha_state()
+
+
     def _update_playlists(self, now=None):
         """ Sync playlists from Google Music library """
         self._playlist_to_index = {}
