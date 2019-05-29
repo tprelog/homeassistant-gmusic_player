@@ -5,19 +5,19 @@
 
 media_player:
   - platform: gmusic_player
-    
+
     ## Enter a valid device_id here or in your secrets.yaml
     device_id: !secret gmusic_device_id
-    
+
     ## Set login_type to access Google Music
     ## valid options are 'legacy' or 'oauth'
     login_type: oauth
-    
+
     ## OAUTH login -- not required if using 'legacy' login
     ## https://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html#gmusicapi.clients.Mobileclient.perform_oauth
     ## Set path to existing oauth credentials file.
     oauth_cred: '/config/.gmusic_oauth'
-    
+
     ## LEGACY login -- not required if using 'oauth' login
     ## https://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html#gmusicapi.clients.Mobileclient.login
     ## Authenticate using full account credentials.
@@ -27,42 +27,82 @@ media_player:
     ## Optional for legacy-login - Directory with RW access for "gmusic_authtoken"
     token_path: '/config/.'
 
-    ## Set various input_select REQUIRED by gmusic_player
-    ## DO NOT REMOVE OR CHANGE THESE (Not Yet!)
+    ## Set various input_select REQUIRED by gmusic_player,
+    ## future plan is to make these optional but for now
+    ## PLEASE DO NOT REMOVE OR CHANGE THESE (Not Yet!)
     media_player: 'gmusic_player_speakers'
     source: 'gmusic_player_source'
     playlist: 'gmusic_player_playlist'
     station: 'gmusic_player_station'
 
 ## Various input_select REQUIRED by gmusic_player
-## DO NOT REMOVE OR CHANGE THESE (Not Yet!)
+## PLEASE DO NOT REMOVE OR CHANGE THESE (Not Yet!)
 ## ONLY EDIT TO ADD YOUR MEDIA_PLAYERS BELOW
 input_select:
   gmusic_player_speakers:
     name: Speakers
-    icon: mdi:speaker-wireless
-    options: ## Replace with entity_ids of your own media_players
+    icon: mdi:speaker
+    options: ## ONLY HERE - Replace with entity_ids of your own media_players
     - bedroom_stereo
-    - workshop_stereo    
-  
+    - workshop_stereo
+
   gmusic_player_source:
     name: Source
     icon: mdi:library-music
     options:
     - "Playlist"
     - "Station"
-  
+
   gmusic_player_playlist:
     name: Playlist
     icon: mdi:playlist-music
     options: ## Should be empty
     - " "
-  
+
   gmusic_player_station:
     name: Station
     icon: mdi:playlist-music
     options:  ## Should be empty
     - " "
+
+## Used for auto track advance.
+sensor:
+  - platform: template
+    sensors:
+      gmusic_receiver:
+        value_template: "{{ states.media_player.gmusic_player.attributes._player_state }}"
+
+automation old:
+  - alias: "gmusic_player_auto_advance"
+    hide_entity: true
+    initial_state: 'on'
+    trigger:
+      platform: state
+      #value_template: "{{ states.media_player.gmusic_player.attributes._player_state }}"
+      entity_id: 'sensor.gmusic_receiver'
+      from: 'playing'
+      to: 'idle'
+      for:
+        seconds: 1
+    condition:
+      - condition: state
+        entity_id: 'media_player.gmusic_player'
+        state: 'playing'
+    action:
+      - service: media_player.media_next_track
+        entity_id: 'media_player.gmusic_player'
+
+  - alias: "gmusic_Player_auto_play"
+    hide_entity: true
+    initial_state: 'on'
+    trigger:
+      platform: state
+      entity_id: 'media_player.gmusic_player'
+      from: 'off'
+      to: 'idle'
+    action:
+      - service: media_player.media_play
+        entity_id: 'media_player.gmusic_player'
 
 
 ## ------------------------------------------------------------------------- ,
@@ -73,14 +113,18 @@ homeassistant:
     media_player.gmusic_player:
       friendly_name: "Google Music Player"
 
+    sensor.gmusic_receiver:
+      friendly_name: "Google Music Receiver"
+      hidden: true
+
 ## This group may only be visable when using the "states UI"
 group:
   google_music_media_player:
     control: hidden
     name: Google Music
     entities:
+    - media_player.gmusic_player
     - input_select.gmusic_player_speakers
     - input_select.gmusic_player_source
     - input_select.gmusic_player_playlist
     - input_select.gmusic_player_station
-    - media_player.gmusic_player
