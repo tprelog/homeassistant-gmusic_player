@@ -253,7 +253,12 @@ class GmusicComponent(MediaPlayerDevice):
         " True  --> entity_picture: http://lh3.googleusercontent.com/Ndilu... "
         " False --> entity_picture: /api/media_player_proxy/media_player.gmusic_player?token=4454... "
         return True
-    
+
+    @property
+    def shuffle(self):
+        """Boolean if shuffling is enabled."""
+        return self._shuffle
+
     @property
     def volume_level(self):
       """Volume level of the media player (0..1)."""
@@ -414,9 +419,9 @@ class GmusicComponent(MediaPlayerDevice):
         self._tracks = self._playlists[idx]['tracks']        
         
         #self.log("Loading [{}] Tracks From: {}".format(len(self._tracks), _playlist_id))
-        random.shuffle(self._tracks)
-        self._next_track_no = -1
-        self._play()       
+        if self._shuffle and self._shuffle_mode != 2:
+            random.shuffle(self._tracks)
+        self._play()
 
 
     def _load_station(self):
@@ -455,14 +460,13 @@ class GmusicComponent(MediaPlayerDevice):
         if not self._playing:
             return
         _track = None
-        
-        _total_tracks = len(self._tracks)
-        self._next_track_no = self._next_track_no + 1
-        
-        if self._next_track_no >= _total_tracks:
-            random.shuffle(self._tracks)    ## (re)Shuffle on Loop
-            self._next_track_no = 0         ## Restart curent playlist (Loop)
-            
+        if self._shuffle and self._shuffle_mode != 1:
+            self._next_track_no = random.randrange(self._total_tracks) - 1
+        else:
+            self._next_track_no = self._next_track_no + 1
+            if self._next_track_no >= self._total_tracks:
+                self._next_track_no = 0         ## Restart curent playlist (Loop)
+                #random.shuffle(self._tracks)    ## (re)Shuffle on Loop
         try:
             _track = self._tracks[self._next_track_no]
         except IndexError:
@@ -596,8 +600,19 @@ class GmusicComponent(MediaPlayerDevice):
         self._track_album_cover = None
         self.schedule_update_ha_state()
         data = {ATTR_ENTITY_ID: self._entity_ids}
-        self.hass.services.call(DOMAIN_MP, 'media_stop', data)        
-    
+        self.hass.services.call(DOMAIN_MP, 'media_stop', data)
+
+    def set_shuffle(self, shuffle):
+        self._shuffle = shuffle
+        if self._shuffle_mode == 1:
+            self._attributes['shuffle_mode'] = 'Shuffle'
+        elif self._shuffle_mode == 2:
+            self._attributes['shuffle_mode'] = 'Random'
+        elif self._shuffle_mode == 3:
+            self._attributes['shuffle_mode'] = 'Shuffle Random'
+        else:
+            self._attributes['shuffle_mode'] = self._shuffle_mode
+        return self.schedule_update_ha_state()
 
     def set_volume_level(self, volume):
         """Set volume level."""
