@@ -125,7 +125,7 @@ class GmusicComponent(MediaPlayerDevice):
                 with open(_authtoken, 'rb') as handle:
                     authtoken = pickle.load(handle)
             else:
-                authtoken = None        
+                authtoken = None
             _username = config.get(CONF_USERNAME)
             _password = config.get(CONF_PASSWORD, DEFAULT_PASSWORD)
             logged_in = self._api.login(_username, _password, _device_id, authtoken)
@@ -151,37 +151,38 @@ class GmusicComponent(MediaPlayerDevice):
             raise Exception("Invalid! login_type: ", _login_type)
 
         self._name = "gmusic_player"
-        ## NOTE: Consider rename here. Example 'self._playlist' -->>> 'self._playlist_select' or 'self._select_playlist'
-        self._playlist = "input_select." + config.get(CONF_PLAYLISTS)
-        self._media_player = "input_select." + config.get(CONF_SPEAKERS)
-        self._station = "input_select." + config.get(CONF_STATIONS)
-        self._source = "input_select." + config.get(CONF_SOURCE)
-        
-        self._entity_ids = []  ## media_players or speakers
+        self._playlist = "input_select." + config.get(CONF_PLAYLISTS, DEFAULT_PLAYLISTS)
+        self._media_player = "input_select." + config.get(CONF_SPEAKERS, DEFAULT_SPEAKERS)
+        self._station = "input_select." + config.get(CONF_STATIONS, DEFAULT_STATIONS)
+        self._source = "input_select." + config.get(CONF_SOURCE, DEFAULT_SOURCE)
+
+        self._entity_ids = []  ## media_players - aka speakers
         self._playlists = []
         self._playlist_to_index = {}
         self._stations = []
         self._station_to_index = {}
         self._tracks = []
         self._track = []
+        self._attributes = {}
         self._next_track_no = 0
-        
+
+        hass.bus.listen_once(EVENT_HOMEASSISTANT_START, self._update_playlists)
+        hass.bus.listen_once(EVENT_HOMEASSISTANT_START, self._update_stations)
+
+        self._shuffle = config.get(CONF_SHUFFLE, DEFAULT_SHUFFLE)
+        self._shuffle_mode = config.get(CONF_SHUFFLE_MODE, DEFAULT_SHUFFLE_MODE)
+
+        self._unsub_tracker = None
+        self._playing = False
+        self._state = STATE_OFF
+        self._volume = 0.0
+        self._is_mute = False
         self._track_name = None
         self._track_artist = None
         self._track_album_name = None
         self._track_album_cover = None
         self._track_artist_cover = None
-        
-        hass.bus.listen_once(EVENT_HOMEASSISTANT_START, self._update_playlists)
-        hass.bus.listen_once(EVENT_HOMEASSISTANT_START, self._update_stations)
-        
-        self._playing = False
-        self._is_mute = False
-        self._volume = None
-        self._unsub_tracker = None
-        self._state = STATE_OFF
-        self._attributes = {}
-    
+        self._attributes['_player_state'] = STATE_OFF
 
     @property
     def name(self):
@@ -249,6 +250,8 @@ class GmusicComponent(MediaPlayerDevice):
 
     @property
     def media_image_remotely_accessible(self):
+        " True  --> entity_picture: http://lh3.googleusercontent.com/Ndilu... "
+        " False --> entity_picture: /api/media_player_proxy/media_player.gmusic_player?token=4454... "
         return True
     
     @property
@@ -319,6 +322,7 @@ class GmusicComponent(MediaPlayerDevice):
         self.turn_off()
 
     def _update_entity_ids(self):
+        """ sets the current media_player from input_select """
         media_player = self.hass.states.get(self._media_player)
         if media_player is None:
             _LOGGER.error("(%s) is not a valid input_select entity.", self._media_player)
@@ -327,7 +331,8 @@ class GmusicComponent(MediaPlayerDevice):
         if self.hass.states.get(_entity_ids) is None:
             _LOGGER.error("(%s) is not a valid media player.", media_player.state)
             return False
-        self._entity_ids = _entity_ids 
+        # Example: self._entity_ids = media_player.bedroom_stereo
+        self._entity_ids = _entity_ids
         return True
 
 
@@ -369,13 +374,13 @@ class GmusicComponent(MediaPlayerDevice):
         self._attributes['stations'] = stations
 
         data = {"options": list(stations), "entity_id": self._station}
-        self.hass.services.call(input_select.DOMAIN, input_select.SERVICE_SET_OPTIONS, data)               
+        self.hass.services.call(input_select.DOMAIN, input_select.SERVICE_SET_OPTIONS, data)
 
 
     def _load_playlist(self):
         """ Load selected playlist to the track_queue """
         if not self._update_entity_ids():
-            return        
+            return
         """ if source == Playlist """
         _playlist_id = self.hass.states.get(self._playlist)
         if _playlist_id is None:
@@ -497,15 +502,13 @@ class GmusicComponent(MediaPlayerDevice):
                 self._turn_off_media_player()
                 return
             return self._get_track(retry=retry-1)
-        
+        self._state = STATE_PLAYING
+        self.schedule_update_ha_state()
         data = {
             ATTR_MEDIA_CONTENT_ID: _url,
             ATTR_MEDIA_CONTENT_TYPE: "audio/mp3",
             ATTR_ENTITY_ID: self._entity_ids
             }
-        
-        self._state = STATE_PLAYING
-        self.schedule_update_ha_state()
         self.hass.services.call(DOMAIN_MP, SERVICE_PLAY_MEDIA, data)
 
 
