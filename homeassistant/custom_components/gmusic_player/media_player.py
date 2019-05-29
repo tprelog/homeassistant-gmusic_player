@@ -601,23 +601,20 @@ class GmusicComponent(MediaPlayerDevice):
 
     def set_volume_level(self, volume):
         """Set volume level."""
-        #self._client.set_volume(int(100 * volume))
-        data = {ATTR_ENTITY_ID: self._entity_ids, 'volume_level': volume}
+        self._volume = round(volume,2)
+        data = {ATTR_ENTITY_ID: self._entity_ids, 'volume_level': self._volume}
         self.hass.services.call(DOMAIN_MP, 'volume_set', data)
+        self.schedule_update_ha_state()
 
     def volume_up(self, **kwargs):
         """Volume up the media player."""
-        # newvolume = min(self._client.volume + 4, 100)
-        # self._client.set_volume(newvolume)
-        data = {ATTR_ENTITY_ID: self._entity_ids}
-        self.hass.services.call(DOMAIN_MP, 'volume_up', data)
+        newvolume = min(self._volume + 0.05, 1)
+        self.set_volume_level(newvolume)
 
     def volume_down(self, **kwargs):
         """Volume down media player."""
-        # newvolume = max(self._client.volume - 4, 0)
-        # self._client.set_volume(newvolume)
-        data = {ATTR_ENTITY_ID: self._entity_ids}
-        self.hass.services.call(DOMAIN_MP, 'volume_down', data)
+        newvolume = max(self._volume - 0.05, 0.01)
+        self.set_volume_level(newvolume)
 
     def mute_volume(self, mute):
         """Send mute command."""
