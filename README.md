@@ -27,10 +27,10 @@ Add the following files to `custom_components/gmusic_player`:
 [`custom_components/gmusic_player/media_player.py`](https://github.com/tprelog/GoogleMusic_HomeAssistant/blob/master/homeassistant/custom_components/gmusic_player/media_player.py)  
 
 **Configure -**
-Everything for the configuration is provided using a [packages](https://www.home-assistant.io/docs/configuration/packages/) file. You should only need to edit a few things to get this up and running. If you have never used a packages file, [SEE HERE.](https://www.home-assistant.io/docs/configuration/packages/#create-a-packages-folder)  
+Everything for the configuration is provided using a [packages](https://www.home-assistant.io/docs/configuration/packages/) file. You should only need to edit a few things to get this up and running. If you have never used a packages file [SEE HERE.](https://www.home-assistant.io/docs/configuration/packages/#create-a-packages-folder)  
 
 Add the following file to your Home Assistant `packages` directory:  
-[`packages/gmusic_player.yaml`](https://github.com/tprelog/GoogleMusic_HomeAssistant/blob/master/homeassistant/packages/gmusic_player.yaml).  
+[`packages/gmusic_player.yaml`](https://github.com/tprelog/GoogleMusic_HomeAssistant/blob/master/homeassistant/packages/gmusic_player.yaml)  
 
 The things you'll need to edit are to configure login information and add your media players. If you are using the original gmusic switch, the login information, including device_id, can be the same for this as your using for the original gmusic switch. *They can share the same login but you can only play music from one at a time.*
 
@@ -47,7 +47,7 @@ To configure your media_players:
 Another note in the not perfect column with regards to the configuration. At this point, please understand Im just taking first steps on a long road of learning. If you want to test out gmusic_player *and actually have it working*, for now please only the edit minimum requirements needed to get this running. Changing the icon or friendly name should be ok as well but trying to rename the entities themselves will likely break something.
 
 ### Select and play music
- In similiar function to the original switch, you could choose your media_player and playlist (or station), when you turn_on the gmusic_player the selected music will play to the selected speakers. To change the speakers and playlist, you could make new selections and toggle power using the button on the gmusic_player or using media_player services `media_player.turn_off` then `media_player.turn_on`. Basically the same way the switch works. `media_player.toggle` can be used to control power as well.
+ In similiar function to the original gmusic switch, you could choose your media player and playlist (or station), when you turn on the gmusic_player the selected music will play to the selected speakers. To change the speakers and playlist, you could make new selections and toggle power using the button on the gmusic_player or using media_player services `media_player.turn_off` then `media_player.turn_on`. Basically the same way the switch works. `media_player.toggle` can be used to control power as well.
 
 ![img](img/gm_player_basic_on.png)
 
@@ -56,11 +56,12 @@ When you press play on gmusic_player from an 'idle' or 'stopped' state, it will 
 *Depending on the selected source*
 
 `media_player.media_play_pause`  
-Or when you press play on gmusic_player from a'playing' or 'paused' state. Toggle play/pause.  
+Or when you press play on gmusic_player from a'playing' or 'paused' state. Toggle play/pause.
 *This is the default media_player action.*
 
 `media_player.media_stop`  
-For gmusic_player you only need to cycle the power if you want to change the speakers. If you just want to reload or change the playlist you can stop (not pause) the music.
+If you just want to reload or change the playlist you can stop (not pause) the music.
+*For gmusic_player you only need to toggle power if you want to change the speakers.*
 
 `media_player.media_pause`  
 Just pause. Does not toggle back to play
@@ -104,35 +105,36 @@ Or when you press next on gmusic_player, will play the next track
 `media_player.volume_set`  
 Use 2 digit float from 0 - 1. *100%* volume is *1*
 
-For example on the services page to set volume at 5% use `0.05`:
+For example on the services page to set volume at 8% use `0.08`:
 ```
 {
   "entity_id": "media_player.gmusic_player",
-  "volume_level": 0.05
+  "volume_level": 0.08
 }
 ```
- To set 25% volume use `0.25`:
+ To set 35% volume use `0.35`:
 ```
 {
   "entity_id": "media_player.gmusic_player",
-  "volume_level": 0.25
+  "volume_level": 0.35
 }
 ```
 
 `media_player.volume_down`  
 Or when you press volume down on gmusic_player  
-volume down by 5% increments. *I set a 1% minimum, use mute for no volume.*
+Decrease volume by 5% increments until 1%.  
+*Use volume_mute or set_volume to 0 for no sound.*
 
 `media_player.volume_up`  
 Or when you press volume up on gmusic_player  
-volume up by 5% increments.
+Increase volume by 5% increments.
 
 `media_player.volume_mute`  
 Or when you press mute on gmusic_player  
 Toggles mute on/off.
 
 `media_player.shuffle_set`  
-This only accepts a boolean so you can only turn shuffle off/on. Tracks are shuffled when the playlist is loaded.  
+This accepts a boolean so you can only turn shuffle off/on. Tracks are shuffled when the playlist is loaded.  
 Default is *True* and *shuffle_mode: 1* so playback is similar to the switch. You'll need to reload the playlist (stop/play) for this to take effect.
 
 To turn off shuffle from the services page:
