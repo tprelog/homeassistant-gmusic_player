@@ -11,12 +11,7 @@ media_player:
 
     ## Set login_type to access Google Music
     ## valid options are 'legacy' or 'oauth'
-    login_type: oauth
-
-    ## OAUTH login -- not required if using 'legacy' login
-    ## https://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html#gmusicapi.clients.Mobileclient.perform_oauth
-    ## Set path to existing oauth credentials file.
-    oauth_cred: '/config/.gmusic_oauth'
+    login_type: legacy
 
     ## LEGACY login -- not required if using 'oauth' login
     ## https://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html#gmusicapi.clients.Mobileclient.login
@@ -25,7 +20,12 @@ media_player:
     user: !secret gmusic_user
     password: !secret gmusic_password
     ## Optional for legacy-login - Directory with RW access for "gmusic_authtoken"
-    token_path: '/config/.'
+    #token_path: '/config/.'
+
+    ## OAUTH login -- not required if using 'legacy' login
+    ## https://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html#gmusicapi.clients.Mobileclient.perform_oauth
+    ## Set path to existing oauth credentials file.
+    oauth_cred: '/config/.gmusic_oauth'
 
     ## Set various input_select REQUIRED by gmusic_player,
     ## future plan is to make these optional but for now
@@ -65,7 +65,7 @@ input_select:
     options:  ## Should be empty
     - " "
 
-## Used for auto track advance.
+## Sensor used for auto track advance.
 sensor:
   - platform: template
     sensors:
@@ -92,7 +92,7 @@ automation old:
       - service: media_player.media_next_track
         entity_id: 'media_player.gmusic_player'
 
-  - alias: "gmusic_Player_auto_play"
+  - alias: "gmusic_player_auto_play"
     hide_entity: true
     initial_state: 'on'
     trigger:
