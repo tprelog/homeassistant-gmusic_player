@@ -52,13 +52,15 @@ Another note in the not perfect column with regards to the configuration. At thi
 ![img](img/gm_player_basic_on.png)
 
 `media_player.media_play`  
-When you press play on gmusic_player, it will (re)load whatever playlist or station you have selected. *Depending on the selected source*
+When you press play on gmusic_player from an 'idle' or 'stopped' state, it will (re)load whatever playlist or station you have selected.
+*Depending on the selected source*
+
+`media_player.media_play_pause`  
+Or when you press play on gmusic_player from a'playing' or 'paused' state. Toggle play/pause.  
+*This is the default media_player action.*
 
 `media_player.media_stop`  
 For gmusic_player you only need to cycle the power if you want to change the speakers. If you just want to reload or change the playlist you can stop (not pause) the music.
-
-`media_player.media_play_pause`  
-Or when you press play on gmusic_player. Toggle play/pause is the default media_player action.
 
 `media_player.media_pause`  
 Just pause. Does not toggle back to play
@@ -93,7 +95,8 @@ This would immediately switch to (or start) playing a 'station' named "'90s Alte
 ```
 
  `media_player.media_previous_track`  
-Or when you press prev on gmusic_player, will play the previous track (not start the current track over) *unless shuffle_mode = 2 or 3*
+Or when you press prev on gmusic_player, will play the previous track (not start the current track over)  
+*unless shuffle_mode = 2 or 3*
 
 `media_player.media_next_track`  
 Or when you press next on gmusic_player, will play the next track
@@ -158,9 +161,9 @@ Tracks are shuffled first then load to the "track queue". Tracks are then random
 ---
 ---
 
-## Google Music in HA -- [as a switch](https://community.home-assistant.io/t/google-music-in-ha/10976/214?u=troy)
-This is an updated version of the original Gmusic Switch.__
-It has been modified to hopefully continue working past Home Assistant 92.1+ and [The Great Migration.](https://developers.home-assistant.io/blog/2019/02/19/the-great-migration.html)
+## Google Music in HA -- as a switch
+This is an updated version of [the original Gmusic Switch.](https://community.home-assistant.io/t/google-music-in-ha/10976/214?u=troy)  
+It has been modified to hopefully continue working past [The Great Migration](https://developers.home-assistant.io/blog/2019/02/19/the-great-migration.html) and Home Assistant 92.1+
 
 ![img](img/gm_switch.png)
 
