@@ -1,12 +1,6 @@
-## Google Music in Home Assistant
-Stream from your [Google Music library](https://play.google.com/music/listen#/home) with Home Assistant
+## Google Music Media Player
 
-#### Based on [the original gmusic in HA code](https://github.com/Danielhiversen/home-assistant_config/blob/master/custom_components/switch/gmusic.py) by @Danielhiversen
-
-# Google Music in HA -- as a media player
-The [gmusic switch](https://community.home-assistant.io/t/google-music-in-ha/10976) and [gmusic using appdaemon](https://community.home-assistant.io/t/google-music-in-ha-using-appdaemon/109983) had a love child and it's a media player! :tada:  
-
-Well sort of... It should be said first that this is probably not a "properly" written custom component. I'm still very new to even the basics of python and have barely scratched the surfure when it comes to "properly" writing a custom component for Home Assistant. Technically, I think this is a custom platform for the media_player domain in Home Assistant, done properly this should be its own custom domain.  
+**Based on [the original gmusic in HA code](https://github.com/Danielhiversen/home-assistant_config/blob/master/custom_components/switch/gmusic.py) by @Danielhiversen**  
 
 I can sum it up like this. There's the *right way* and there's the *get it done* way. This is a *get it done* way.  
 *While this is not  perfect custom component, it does seem to work rather well so far.*
@@ -16,36 +10,61 @@ I can sum it up like this. There's the *right way* and there's the *get it done*
 
 **Otherwise -** The setup and function is much like the original gmusic switch. Additionally, this adds most of the media_player services, the ablilty to play stations you have added to your music library and an option to use oauth-login for the gmusicapi. This still uses additional input_select(s) and media_play entities as the original switch does. From the input_select(s), your media_player (I call speakers) is selected when the power is turned on. (You have to toggle power off/on if you want to change speakers.) A playlist or station is selected when you press play or use `media_player.media_play` from an 'idle' or 'stopped' state. Selected tracks are loaded to the track queue (I refer to track queue as the loaded/playing music.) and begin to play. This means stop/play can be used to change music without powering off the speakers but pause/play is still pause and play.  
 
-**Install -**
+---
+#### Install with HACS (Home Assistant Community Store)
+
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+
+You can use [HACS](https://github.com/custom-components/hacs#hacs-home-assistant-community-store) to install and update this custom component for you.  
+In HACS Settings --> Custom Repositories, add the following:
+    
+    https://github.com/tprelog/homeassistant-gmusic_player
+
+Use type: `Integration`
+
+#### Install Manually
 Inside your Home Assistant `custom_components` directory, create another named `gmusic_player`  
 
 Add the following files to `custom_components/gmusic_player`:  
 *The first two files should only contain a single comment on the first line*  
-[`custom_components/gmusic_player/__init__.py`](https://github.com/tprelog/GoogleMusic_HomeAssistant/blob/master/homeassistant/custom_components/gmusic_player/__init__.py)  
-[`custom_components/gmusic_player/services.yaml`](https://github.com/tprelog/GoogleMusic_HomeAssistant/blob/master/homeassistant/custom_components/gmusic_player/services.yaml)  
-[`custom_components/gmusic_player/manifest.json`](https://github.com/tprelog/GoogleMusic_HomeAssistant/blob/master/homeassistant/custom_components/gmusic_player/manifest.json)  
-[`custom_components/gmusic_player/media_player.py`](https://github.com/tprelog/GoogleMusic_HomeAssistant/blob/master/homeassistant/custom_components/gmusic_player/media_player.py)  
+[`custom_components/gmusic_player/__init__.py`](https://github.com/tprelog/homeassistant-gmusic_player/blob/master/custom_components/gmusic_player/__init__.py)  
+[`custom_components/gmusic_player/services.yaml`](https://github.com/tprelog/homeassistant-gmusic_player/blob/master/custom_components/gmusic_player/services.yaml)  
+[`custom_components/gmusic_player/manifest.json`](https://github.com/tprelog/homeassistant-gmusic_player/blob/master/custom_components/gmusic_player/manifest.json)  
+[`custom_components/gmusic_player/media_player.py`](https://github.com/tprelog/homeassistant-gmusic_player/blob/master/custom_components/gmusic_player/media_player.py)  
 
-**Configure -**
-Everything for the configuration is provided using a [packages](https://www.home-assistant.io/docs/configuration/packages/) file. You should only need to edit a few things to get this up and running. If you have never used a packages file [SEE HERE.](https://www.home-assistant.io/docs/configuration/packages/#create-a-packages-folder)  
+---
+### Configuration after Install
+- Everything for the configuration is provided using packages.
+- You should only need to edit a few things to get this up and running.
+- If you have never used a packages file [SEE HERE.](https://www.home-assistant.io/docs/configuration/packages/#create-a-packages-folder)  
 
-Add the following file to your Home Assistant `packages` directory:  
-[`packages/gmusic_player.yaml`](https://github.com/tprelog/GoogleMusic_HomeAssistant/blob/master/homeassistant/packages/gmusic_player.yaml)  
+**Add both of the following files to your Home Assistant `packages` directory**  
+ - [`packages/gmusic_config.yaml`](https://github.com/tprelog/homeassistant-gmusic_player/blob/master/packages/gmusic_config.yaml)
+ - [`packages/gmusic_player.yaml`](https://github.com/tprelog/homeassistant-gmusic_player/blob/master/packages/gmusic_player.yaml)
 
-The things you'll need to edit are to configure login information and add your media players. If you are using the original gmusic switch, the login information, including device_id, can be the same for this as your using for the original gmusic switch. *They can share the same login but you can only play music from one at a time.*
+---
+### Configuration options:  `packages/gmusic_config.yaml`
 
-To configure the login:
- - On `line 10` you should find `device_id:`
- Set your valid device_id here: (I recommend you to use your secrets.yaml)
+Key | Type | Required | Description
+--- | --- | --- | ---
+`username` | `string` | `YES` | Set your google music username.
+`password` | `string` | `YES` | Set your google music password.
+`device_id`| `string` | `YES` | Set your valid device_id here.
+`token_path` | `string` | `NO` | Directory with RW access for `gmusic_authtoken`
+`gmusicproxy` | `string` | `NO` | Url for your local gmusic proxy server 
+`shuffle` | `boolean` | `NO` | Default: `True`
+`shuffle_mode` | `integer` | `NO` | Default: `1`
 
- - For the (default) legacy login, on `lines 20-21` you should find `user` and `password`:
- Set your google music username and password here. (I recommend you to use your secrets.yaml)
+### You also need to configure your media_players here
+ - At the bottom, edit the example media_players so they match your own
 
-To configure your media_players:
- - Beginning on `lines 46-47` you will need to edit to add your own media_players.
+```yaml
+    options: # Example media_players
+    - bedroom_stereo
+    - workshop_stereo
+```
 
-Another note in the not perfect column with regards to the configuration. At this point, please understand Im just taking first steps on a long road of learning. If you want to test out gmusic_player *and actually have it working*, for now please only the edit minimum requirements needed to get this running. Changing the icon or friendly name should be ok as well but trying to rename the entities themselves will likely break something.
-
+---
 ### Select and play music
  In similiar function to the original gmusic switch, you could choose your media player and playlist (or station), when you turn on the gmusic_player the selected music will play to the selected speakers. To change the speakers and playlist, you could make new selections and toggle power using the button on the gmusic_player or using media_player services `media_player.turn_off` then `media_player.turn_on`. Basically the same way the switch works. `media_player.toggle` can be used to control power as well.
 
@@ -159,24 +178,3 @@ This loads the playlist songs is the same order they are saved in your library. 
 
 `shuffle_mode: 3` - Shuffle Random  
 Tracks are shuffled first then load to the "track queue". Tracks are then randomly selected from anywhere in the queue.  
-
----
----
-
-## Google Music in HA -- as a switch
-This is an updated version of [the original Gmusic Switch.](https://community.home-assistant.io/t/google-music-in-ha/10976/214?u=troy)  
-It has been modified to hopefully continue working past [The Great Migration](https://developers.home-assistant.io/blog/2019/02/19/the-great-migration.html) and Home Assistant 92.1+
-
-![img](img/gm_switch.png)
-
----
----
-
-## Google Music in HA -- [Using AppDaemon](https://community.home-assistant.io/t/google-music-in-ha-using-appdaemon/109983?u=troy)
-**UPDATE 06/01/19: Please now consider using the [gmusic player custom component](https://github.com/tprelog/GoogleMusic_HomeAssistant#google-music-in-ha----as-a-media-player) instead**
-
-In the future, I hope to contribute toward creating a new Google Music component for Home Assistant.
-For now I have found [AppDaemon](https://www.home-assistant.io/docs/ecosystem/appdaemon) to be an easier approach to start learning python and the [gmusicapi](https://github.com/simon-weber/gmusicapi).
-
-![img](img/gm_app_v0.0.2s.png)
-
