@@ -1,0 +1,16 @@
+## Google Music Media Player
+## Use this 'package.yaml' file to configure "gmusic_player"
+media_player:
+  - platform: gmusic_player
+    username: !secret gmusic_username
+    password: !secret gmusic_password
+    device_id: !secret gmusic_device_id
+
+input_select:
+  gmusic_player_speakers:
+    name: Speakers
+    icon: mdi:speaker
+    ## Add your media_players below
+    options: # Example media_players
+    - bedroom_stereo
+    - workshop_stereo

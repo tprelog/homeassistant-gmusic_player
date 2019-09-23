@@ -1,51 +1,6 @@
-## Google Music in Home Assistant as a media_player
-## Stream playlists and stations from your Google Music library
-
-## Use this 'package.yaml' file to configure "gmusic_player"
-
-media_player:
-  - platform: gmusic_player
-
-    ## Enter a valid device_id here or in your secrets.yaml
-    device_id: !secret gmusic_device_id
-
-    ## Set login_type to access Google Music
-    ## valid options are 'legacy' or 'oauth'
-    login_type: legacy
-
-    ## LEGACY login -- not required if using 'oauth' login
-    ## https://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html#gmusicapi.clients.Mobileclient.login
-    ## Authenticate using full account credentials.
-    ## Set username and password here or in your secrets.yaml
-    user: !secret gmusic_user
-    password: !secret gmusic_password
-    ## Optional for legacy-login - Directory with RW access for "gmusic_authtoken"
-    #token_path: '/config/.'
-
-    ## OAUTH login -- not required if using 'legacy' login
-    ## https://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html#gmusicapi.clients.Mobileclient.perform_oauth
-    ## Set path to existing oauth credentials file.
-    oauth_cred: '/config/.gmusic_oauth'
-
-    ## Set various input_select REQUIRED by gmusic_player,
-    ## future plan is to make these optional but for now
-    ## PLEASE DO NOT REMOVE OR CHANGE THESE (Not Yet!)
-    media_player: 'gmusic_player_speakers'
-    source: 'gmusic_player_source'
-    playlist: 'gmusic_player_playlist'
-    station: 'gmusic_player_station'
-
-## Various input_select REQUIRED by gmusic_player
-## PLEASE DO NOT REMOVE OR CHANGE THESE (Not Yet!)
-## ONLY EDIT TO ADD YOUR MEDIA_PLAYERS BELOW
+## Google Music Media Player
+## Supplemental 'package.yaml' file for "gmusic_player"
 input_select:
-  gmusic_player_speakers:
-    name: Speakers
-    icon: mdi:speaker
-    options: ## ONLY HERE - Replace with entity_ids of your own media_players
-    - bedroom_stereo
-    - workshop_stereo
-
   gmusic_player_source:
     name: Source
     icon: mdi:library-music
