@@ -165,9 +165,8 @@ class GmusicComponent(MediaPlayerDevice):
         self._track = []
         self._attributes = {}
         self._next_track_no = 0
-
-        hass.bus.listen_once(EVENT_HOMEASSISTANT_START, self._update_playlists)
-        hass.bus.listen_once(EVENT_HOMEASSISTANT_START, self._update_stations)
+        
+        hass.bus.listen_once(EVENT_HOMEASSISTANT_START, self._update_sources)
 
         self._shuffle = config.get(CONF_SHUFFLE, DEFAULT_SHUFFLE)
         self._shuffle_mode = config.get(CONF_SHUFFLE_MODE, DEFAULT_SHUFFLE_MODE)
@@ -357,6 +356,14 @@ class GmusicComponent(MediaPlayerDevice):
             self.turn_off()
 
         self.schedule_update_ha_state()
+
+
+    def _update_sources(self, now=None):
+        _LOGGER.debug("Load source lists")
+        self._update_playlists()
+        self._update_stations()
+        #self._update_library()
+        #self._update_songs()
 
 
     def _update_playlists(self, now=None):
