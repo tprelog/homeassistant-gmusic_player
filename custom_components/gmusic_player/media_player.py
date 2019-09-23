@@ -54,11 +54,10 @@ CONF_SHUFFLE_MODE = 'shuffle_mode'
 
 DEFAULT_DEVICE_ID = "00"
 DEFAULT_TOKEN_PATH = "./."
-DEFAULT_OAUTH_CRED = 'not_set'
-DEFAULT_SPEAKERS = 'not_set'
-DEFAULT_SOURCE = 'not_set'
-DEFAULT_PLAYLISTS = 'not_set'
-DEFAULT_STATIONS = 'not_set'
+DEFAULT_SPEAKERS = 'gmusic_player_speakers'
+DEFAULT_SOURCE = 'gmusic_player_source'
+DEFAULT_PLAYLISTS = 'gmusic_player_playlist'
+DEFAULT_STATIONS = 'gmusic_player_station'
 DEFAULT_SHUFFLE = True
 DEFAULT_SHUFFLE_MODE = 1
 
@@ -72,6 +71,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend = vol.Schema({
         vol.Optional(CONF_SOURCE, default=DEFAULT_SOURCE): cv.string,
         vol.Optional(CONF_PLAYLISTS, default=DEFAULT_PLAYLISTS): cv.string,
         vol.Optional(CONF_STATIONS, default=DEFAULT_STATIONS): cv.string,
+        vol.Optional(CONF_SHUFFLE, default=DEFAULT_SHUFFLE): cv.string,
+        vol.Optional(CONF_SHUFFLE_MODE, default=DEFAULT_SHUFFLE_MODE): cv.string,
     })
 }, extra=vol.ALLOW_EXTRA)
 
