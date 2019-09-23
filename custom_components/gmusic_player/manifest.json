@@ -1,7 +1,7 @@
 {
   "domain": "gmusic_player",
   "name": "Google Music Player",
-  "documentation": "https://community.home-assistant.io",
+  "documentation": "https://github.com/tprelog/homeassistant-gmusic_player",
   "requirements": [
     "gmusicapi>=11.0.4"
   ],
