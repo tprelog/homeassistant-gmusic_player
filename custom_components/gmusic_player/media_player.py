@@ -41,12 +41,10 @@ SUPPORT_GMUSIC_PLAYER = SUPPORT_TURN_ON | SUPPORT_TURN_OFF | SUPPORT_PLAY_MEDIA 
     SUPPORT_VOLUME_SET | SUPPORT_VOLUME_STEP | SUPPORT_VOLUME_MUTE | \
     SUPPORT_PREVIOUS_TRACK | SUPPORT_NEXT_TRACK | SUPPORT_SHUFFLE_SET
 
-CONF_USERNAME = 'user'
+CONF_USERNAME = 'username'
 CONF_DEVICE_ID = 'device_id'
-CONF_LOGIN_TYPE = 'login_type'
 CONF_PASSWORD = 'password'
 CONF_TOKEN_PATH = 'token_path'
-CONF_OAUTH_CRED = 'oauth_cred'
 CONF_SPEAKERS = 'media_player'
 CONF_SOURCE = 'source'
 CONF_PLAYLISTS = 'playlist'
@@ -54,9 +52,7 @@ CONF_STATIONS = 'station'
 CONF_SHUFFLE = 'shuffle'
 CONF_SHUFFLE_MODE = 'shuffle_mode'
 
-DEFAULT_DEVICE_ID = 'not_set'
-DEFAULT_LOGIN_TYPE = 'not_set'
-DEFAULT_PASSWORD = 'not_set'
+DEFAULT_DEVICE_ID = "00"
 DEFAULT_TOKEN_PATH = "./."
 DEFAULT_OAUTH_CRED = 'not_set'
 DEFAULT_SPEAKERS = 'not_set'
@@ -69,11 +65,9 @@ DEFAULT_SHUFFLE_MODE = 1
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend = vol.Schema({
     DOMAIN: vol.Schema({
         vol.Required(CONF_USERNAME): cv.string,
-        vol.Required(CONF_DEVICE_ID): cv.string,
-        vol.Required(CONF_LOGIN_TYPE): cv.string,
-        vol.Optional(CONF_PASSWORD, default=DEFAULT_PASSWORD): cv.string,
+        vol.Required(CONF_PASSWORD): cv.string,
+        vol.Optional(CONF_DEVICE_ID, default=DEFAULT_DEVICE_ID): cv.string,
         vol.Optional(CONF_TOKEN_PATH, default=DEFAULT_TOKEN_PATH): cv.string,
-        vol.Optional(CONF_OAUTH_CRED, default=DEFAULT_OAUTH_CRED): cv.string,
         vol.Optional(CONF_SPEAKERS, default=DEFAULT_SPEAKERS): cv.string,
         vol.Optional(CONF_SOURCE, default=DEFAULT_SOURCE): cv.string,
         vol.Optional(CONF_PLAYLISTS, default=DEFAULT_PLAYLISTS): cv.string,
@@ -113,30 +107,13 @@ class GmusicComponent(MediaPlayerDevice):
                 raise Exception("Legacy login failed! Please check logs for any gmusicapi related WARNING")
 
         self.hass = hass
-        #self._api = GMusic()
         self._api = Mobileclient()
 
-        _login_type = config.get(CONF_LOGIN_TYPE, DEFAULT_LOGIN_TYPE)
-        _device_id = config.get(CONF_DEVICE_ID)
-
-        if _login_type == 'legacy':
-            _authtoken = config.get(CONF_TOKEN_PATH, DEFAULT_TOKEN_PATH) + "gmusic_authtoken"
-            if os.path.isfile(_authtoken):
-                with open(_authtoken, 'rb') as handle:
-                    authtoken = pickle.load(handle)
-            else:
-                authtoken = None
-            _username = config.get(CONF_USERNAME)
-            _password = config.get(CONF_PASSWORD, DEFAULT_PASSWORD)
-            logged_in = self._api.login(_username, _password, _device_id, authtoken)
-            if not logged_in:
-                _LOGGER.error("Failed legacy log in, check http://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html#gmusicapi.clients.Mobileclient.login")
-                return False
-            with open(_authtoken, 'wb') as f:
-                pickle.dump(self._api.session._authtoken, f)
-
-        elif _login_type == 'oauth':
-            _oauth_cred = config.get(CONF_OAUTH_CRED, DEFAULT_OAUTH_CRED)
+        _username = config.get(CONF_USERNAME)
+        _password = config.get(CONF_PASSWORD)
+        _device_id = config.get(CONF_DEVICE_ID, DEFAULT_DEVICE_ID)
+        if _username == 'oauth':
+            _oauth_cred = _password
             if os.path.isfile(_oauth_cred):
                 try:
                     logged_in = self._api.oauth_login(_device_id, _oauth_cred)
@@ -146,9 +123,19 @@ class GmusicComponent(MediaPlayerDevice):
                     raise Exception("Failed oauth login, check https://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html#gmusicapi.clients.Mobileclient.perform_oauth")
             else:
                 raise Exception("Invalid - Not a file! oauth_cred: ", _oauth_cred)
-
         else:
-            raise Exception("Invalid! login_type: ", _login_type)
+            _authtoken = config.get(CONF_TOKEN_PATH, DEFAULT_TOKEN_PATH) + "gmusic_authtoken"
+            if os.path.isfile(_authtoken):
+                with open(_authtoken, 'rb') as handle:
+                    authtoken = pickle.load(handle)
+            else:
+                authtoken = None
+            logged_in = self._api.login(_username, _password, _device_id, authtoken)
+            if not logged_in:
+                _LOGGER.error("Failed legacy log in, check http://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html#gmusicapi.clients.Mobileclient.login")
+                return False
+            with open(_authtoken, 'wb') as f:
+                pickle.dump(self._api.session._authtoken, f)
 
         self._name = "gmusic_player"
         self._playlist = "input_select." + config.get(CONF_PLAYLISTS, DEFAULT_PLAYLISTS)
