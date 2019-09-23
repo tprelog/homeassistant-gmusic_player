@@ -51,6 +51,7 @@ CONF_PLAYLISTS = 'playlist'
 CONF_STATIONS = 'station'
 CONF_SHUFFLE = 'shuffle'
 CONF_SHUFFLE_MODE = 'shuffle_mode'
+CONF_GMPROXY = 'gmusicproxy'
 
 DEFAULT_DEVICE_ID = "00"
 DEFAULT_TOKEN_PATH = "./."
@@ -60,6 +61,7 @@ DEFAULT_PLAYLISTS = 'gmusic_player_playlist'
 DEFAULT_STATIONS = 'gmusic_player_station'
 DEFAULT_SHUFFLE = True
 DEFAULT_SHUFFLE_MODE = 1
+DEFAULT_GMPROXY = "NA"
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend = vol.Schema({
     DOMAIN: vol.Schema({
@@ -73,6 +75,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend = vol.Schema({
         vol.Optional(CONF_STATIONS, default=DEFAULT_STATIONS): cv.string,
         vol.Optional(CONF_SHUFFLE, default=DEFAULT_SHUFFLE): cv.string,
         vol.Optional(CONF_SHUFFLE_MODE, default=DEFAULT_SHUFFLE_MODE): cv.string,
+        vol.Optional(CONF_GMPROXY, default=DEFAULT_GMPROXY): cv.string,
     })
 }, extra=vol.ALLOW_EXTRA)
 
@@ -143,6 +146,7 @@ class GmusicComponent(MediaPlayerDevice):
         self._media_player = "input_select." + config.get(CONF_SPEAKERS, DEFAULT_SPEAKERS)
         self._station = "input_select." + config.get(CONF_STATIONS, DEFAULT_STATIONS)
         self._source = "input_select." + config.get(CONF_SOURCE, DEFAULT_SOURCE)
+        self._gmusicproxy = config.get(CONF_GMPROXY, DEFAULT_GMPROXY)
 
         self._entity_ids = []  ## media_players - aka speakers
         self._playlists = []
@@ -513,7 +517,10 @@ class GmusicComponent(MediaPlayerDevice):
             self._track_artist_cover = None
         """ Get the stream URL and play on media_player """
         try:
-            _url = self._api.get_stream_url(uid)
+            if self._gmusicproxy == "NA":
+                _url = self._api.get_stream_url(uid)
+            else:
+                _url = self._gmusicproxy + "/get_song?id=" + uid
         except Exception as err:
             _LOGGER.error("Failed to get URL for track: (%s)", uid)
             if retry < 1:
