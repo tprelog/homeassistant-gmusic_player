@@ -1,7 +1,6 @@
 """
-Attempting to support Google Music as a media player
+Attempting to support Google Music in Home Assistant
 """
-import asyncio
 import logging
 import time
 import random
@@ -14,68 +13,104 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.condition import state
 from homeassistant.helpers.event import track_state_change
 from homeassistant.helpers.event import call_later
+from homeassistant.config import get_default_config_dir
 
 import homeassistant.components.input_select as input_select
 
 from homeassistant.const import (
-    ATTR_ENTITY_ID, EVENT_HOMEASSISTANT_START,
-    STATE_PLAYING, STATE_PAUSED, STATE_OFF, STATE_IDLE)
+    EVENT_HOMEASSISTANT_START,
+    ATTR_ENTITY_ID,
+    CONF_DEVICE_ID,
+    CONF_USERNAME,
+    CONF_PASSWORD,
+    STATE_PLAYING,
+    STATE_PAUSED,
+    STATE_OFF,
+    STATE_IDLE,
+)
 
 from homeassistant.components.media_player import (
-    MediaPlayerDevice, PLATFORM_SCHEMA, SERVICE_TURN_ON, SERVICE_TURN_OFF,
-    SERVICE_PLAY_MEDIA, SERVICE_MEDIA_PAUSE, ATTR_MEDIA_VOLUME_LEVEL,
-    SERVICE_VOLUME_UP, SERVICE_VOLUME_DOWN, SERVICE_VOLUME_SET,
-    ATTR_MEDIA_CONTENT_ID, ATTR_MEDIA_CONTENT_TYPE, DOMAIN as DOMAIN_MP)
+    MediaPlayerDevice,
+    PLATFORM_SCHEMA,
+    SERVICE_TURN_ON,
+    SERVICE_TURN_OFF,
+    SERVICE_PLAY_MEDIA,
+    SERVICE_MEDIA_PAUSE,
+    SERVICE_VOLUME_UP,
+    SERVICE_VOLUME_DOWN,
+    SERVICE_VOLUME_SET,
+    ATTR_MEDIA_VOLUME_LEVEL,
+    ATTR_MEDIA_CONTENT_ID,
+    ATTR_MEDIA_CONTENT_TYPE,
+    DOMAIN as DOMAIN_MP,
+)
 
 from homeassistant.components.media_player.const import (
-    MEDIA_TYPE_MUSIC, SUPPORT_STOP, SUPPORT_PLAY, SUPPORT_PAUSE,
-    SUPPORT_PLAY_MEDIA, SUPPORT_PREVIOUS_TRACK, SUPPORT_NEXT_TRACK,
-    SUPPORT_VOLUME_MUTE, SUPPORT_VOLUME_SET, SUPPORT_VOLUME_STEP,
-    SUPPORT_TURN_ON, SUPPORT_TURN_OFF, SUPPORT_SHUFFLE_SET, SUPPORT_SELECT_SOURCE)
+    MEDIA_TYPE_MUSIC,
+    SUPPORT_STOP,
+    SUPPORT_PLAY,
+    SUPPORT_PAUSE,
+    SUPPORT_PLAY_MEDIA,
+    SUPPORT_PREVIOUS_TRACK,
+    SUPPORT_NEXT_TRACK,
+    SUPPORT_VOLUME_MUTE,
+    SUPPORT_VOLUME_SET,
+    SUPPORT_VOLUME_STEP,
+    SUPPORT_TURN_ON,
+    SUPPORT_TURN_OFF,
+    SUPPORT_SHUFFLE_SET,
+)
 
-# The domain of your component. Should be equal to the name of your component.
-DOMAIN = 'gmusic_player'
+# Should be equal to the name of your component.
+DOMAIN = "gmusic_player"
 
-SUPPORT_GMUSIC_PLAYER = SUPPORT_TURN_ON | SUPPORT_TURN_OFF | SUPPORT_PLAY_MEDIA | \
-    SUPPORT_PLAY | SUPPORT_PAUSE | SUPPORT_STOP | SUPPORT_SELECT_SOURCE | \
-    SUPPORT_VOLUME_SET | SUPPORT_VOLUME_STEP | SUPPORT_VOLUME_MUTE | \
-    SUPPORT_PREVIOUS_TRACK | SUPPORT_NEXT_TRACK | SUPPORT_SHUFFLE_SET
+SUPPORT_GMUSIC_PLAYER = (
+    SUPPORT_TURN_ON
+    | SUPPORT_TURN_OFF
+    | SUPPORT_PLAY_MEDIA
+    | SUPPORT_PLAY
+    | SUPPORT_PAUSE
+    | SUPPORT_STOP
+    | SUPPORT_VOLUME_SET
+    | SUPPORT_VOLUME_STEP
+    | SUPPORT_VOLUME_MUTE
+    | SUPPORT_PREVIOUS_TRACK
+    | SUPPORT_NEXT_TRACK
+    | SUPPORT_SHUFFLE_SET
+)
 
-CONF_USERNAME = 'username'
-CONF_DEVICE_ID = 'device_id'
-CONF_PASSWORD = 'password'
 CONF_TOKEN_PATH = 'token_path'
-CONF_SPEAKERS = 'media_player'
-CONF_SOURCE = 'source'
-CONF_PLAYLISTS = 'playlist'
-CONF_STATIONS = 'station'
+CONF_RECEIVERS = 'speakers'     # list of speakers (media_players)
+CONF_GMPROXY = 'gmusicproxy'
 CONF_SHUFFLE = 'shuffle'
 CONF_SHUFFLE_MODE = 'shuffle_mode'
-CONF_GMPROXY = 'gmusicproxy'
 
-DEFAULT_DEVICE_ID = "00"
-DEFAULT_TOKEN_PATH = "./."
-DEFAULT_SPEAKERS = 'gmusic_player_speakers'
-DEFAULT_SOURCE = 'gmusic_player_source'
-DEFAULT_PLAYLISTS = 'gmusic_player_playlist'
-DEFAULT_STATIONS = 'gmusic_player_station'
-DEFAULT_SHUFFLE = True
+CONF_SELECT_SOURCE = 'select_source'
+CONF_SELECT_STATION = 'select_station'
+CONF_SELECT_PLAYLIST = 'select_playlist'
+CONF_SELECT_SPEAKERS = 'select_speakers'
+
+DEFAULT_SELECT_SOURCE = DOMAIN + '_source'
+DEFAULT_SELECT_STATION = DOMAIN + '_station'
+DEFAULT_SELECT_PLAYLIST = DOMAIN + '_playlist'
+DEFAULT_SELECT_SPEAKERS = DOMAIN + '_speakers'
+
+DEFAULT_TOKEN_PATH = get_default_config_dir() + '/.'
+
 DEFAULT_SHUFFLE_MODE = 1
-DEFAULT_GMPROXY = "NA"
+DEFAULT_SHUFFLE = True
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend = vol.Schema({
     DOMAIN: vol.Schema({
         vol.Required(CONF_USERNAME): cv.string,
         vol.Required(CONF_PASSWORD): cv.string,
-        vol.Optional(CONF_DEVICE_ID, default=DEFAULT_DEVICE_ID): cv.string,
+        vol.Optional(CONF_DEVICE_ID): cv.string,
+        vol.Optional(CONF_RECEIVERS): cv.string,        
         vol.Optional(CONF_TOKEN_PATH, default=DEFAULT_TOKEN_PATH): cv.string,
-        vol.Optional(CONF_SPEAKERS, default=DEFAULT_SPEAKERS): cv.string,
-        vol.Optional(CONF_SOURCE, default=DEFAULT_SOURCE): cv.string,
-        vol.Optional(CONF_PLAYLISTS, default=DEFAULT_PLAYLISTS): cv.string,
-        vol.Optional(CONF_STATIONS, default=DEFAULT_STATIONS): cv.string,
-        vol.Optional(CONF_SHUFFLE, default=DEFAULT_SHUFFLE): cv.string,
-        vol.Optional(CONF_SHUFFLE_MODE, default=DEFAULT_SHUFFLE_MODE): cv.string,
-        vol.Optional(CONF_GMPROXY, default=DEFAULT_GMPROXY): cv.string,
+        vol.Optional(CONF_SELECT_SOURCE, default=DEFAULT_SELECT_SOURCE): cv.string,
+        vol.Optional(CONF_SELECT_STATION, default=DEFAULT_SELECT_STATION): cv.string,
+        vol.Optional(CONF_SELECT_PLAYLIST, default=DEFAULT_SELECT_PLAYLIST): cv.string,
+        vol.Optional(CONF_SELECT_SPEAKERS, default=DEFAULT_SELECT_SPEAKERS): cv.string,
     })
 }, extra=vol.ALLOW_EXTRA)
 
@@ -94,7 +129,7 @@ class GmusicComponent(MediaPlayerDevice):
         class GMusic(Mobileclient):
             def login(self, username, password, device_id, authtoken=None):
                 if authtoken:
-                    self.session._authtoken       = authtoken
+                    self.session._authtoken = authtoken
                     self.session.is_authenticated = True
                     try:
                         # Send a test request to ensure our authtoken is still valide and working
@@ -109,26 +144,27 @@ class GmusicComponent(MediaPlayerDevice):
                         return True
                 # Prevent further execution in case we failed with the login-process
                 raise Exception("Legacy login failed! Please check logs for any gmusicapi related WARNING")
-
+        
         self.hass = hass
         self._api = Mobileclient()
-
+        
         _username = config.get(CONF_USERNAME)
         _password = config.get(CONF_PASSWORD)
-        _device_id = config.get(CONF_DEVICE_ID, DEFAULT_DEVICE_ID)
+        _device_id = config.get(CONF_DEVICE_ID, '00')
+        
         if _username == 'oauth':
-            _oauth_cred = _password
-            if os.path.isfile(_oauth_cred):
+            if os.path.isfile(_password):
                 try:
-                    logged_in = self._api.oauth_login(_device_id, _oauth_cred)
+                    logged_in = self._api.oauth_login(_device_id, _password)
                     if not logged_in:
                         raise Exception("Login failed! Please check logs for any gmusicapi related WARNING")
                 except:
                     raise Exception("Failed oauth login, check https://unofficial-google-music-api.readthedocs.io/en/latest/reference/mobileclient.html#gmusicapi.clients.Mobileclient.perform_oauth")
             else:
-                raise Exception("Invalid - Not a file! oauth_cred: ", _oauth_cred)
+                raise Exception("Invalid - Not a file! oauth_cred: ", _password)
         else:
             _authtoken = config.get(CONF_TOKEN_PATH, DEFAULT_TOKEN_PATH) + "gmusic_authtoken"
+            _LOGGER.debug("TOKEN: (%s)", _authtoken)
             if os.path.isfile(_authtoken):
                 with open(_authtoken, 'rb') as handle:
                     authtoken = pickle.load(handle)
@@ -140,14 +176,15 @@ class GmusicComponent(MediaPlayerDevice):
                 return False
             with open(_authtoken, 'wb') as f:
                 pickle.dump(self._api.session._authtoken, f)
-
-        self._name = "gmusic_player"
-        self._playlist = "input_select." + config.get(CONF_PLAYLISTS, DEFAULT_PLAYLISTS)
-        self._media_player = "input_select." + config.get(CONF_SPEAKERS, DEFAULT_SPEAKERS)
-        self._station = "input_select." + config.get(CONF_STATIONS, DEFAULT_STATIONS)
-        self._source = "input_select." + config.get(CONF_SOURCE, DEFAULT_SOURCE)
-        self._gmusicproxy = config.get(CONF_GMPROXY, DEFAULT_GMPROXY)
-
+        
+        self._name = DOMAIN
+        self._playlist = "input_select." + config.get(CONF_SELECT_PLAYLIST, DEFAULT_SELECT_PLAYLIST)
+        self._media_player = "input_select." + config.get(CONF_SELECT_SPEAKERS, DEFAULT_SELECT_SPEAKERS)
+        self._station = "input_select." + config.get(CONF_SELECT_STATION, DEFAULT_SELECT_STATION)
+        self._source = "input_select." + config.get(CONF_SELECT_SOURCE, DEFAULT_SELECT_SOURCE)
+        self._gmusicproxy = config.get(CONF_GMPROXY)
+        self._speakersList = config.get(CONF_RECEIVERS)
+        
         self._entity_ids = []  ## media_players - aka speakers
         self._playlists = []
         self._playlist_to_index = {}
@@ -159,10 +196,13 @@ class GmusicComponent(MediaPlayerDevice):
         self._next_track_no = 0
         
         hass.bus.listen_once(EVENT_HOMEASSISTANT_START, self._update_sources)
-
+        hass.bus.listen_once(EVENT_HOMEASSISTANT_START, self._get_speakers)
+        hass.bus.listen('gmusic_player.sync_media', self._update_sources)
+        hass.bus.listen('gmusic_player.play_media', self._gmusic_play_media)
+        
         self._shuffle = config.get(CONF_SHUFFLE, DEFAULT_SHUFFLE)
         self._shuffle_mode = config.get(CONF_SHUFFLE_MODE, DEFAULT_SHUFFLE_MODE)
-
+        
         self._unsub_tracker = None
         self._playing = False
         self._state = STATE_OFF
@@ -241,18 +281,18 @@ class GmusicComponent(MediaPlayerDevice):
 
     @property
     def media_image_remotely_accessible(self):
-        " True  --> entity_picture: http://lh3.googleusercontent.com/Ndilu... "
-        " False --> entity_picture: /api/media_player_proxy/media_player.gmusic_player?token=4454... "
+        # True  returns: entity_picture: http://lh3.googleusercontent.com/Ndilu...
+        # False returns: entity_picture: /api/media_player_proxy/media_player.gmusic_player?token=4454...
         return True
 
     @property
     def shuffle(self):
-        """Boolean if shuffling is enabled."""
+        """ Boolean if shuffling is enabled. """
         return self._shuffle
 
     @property
     def volume_level(self):
-      """Volume level of the media player (0..1)."""
+      """ Volume level of the media player (0..1). """
       return self._volume
 
 
@@ -304,7 +344,7 @@ class GmusicComponent(MediaPlayerDevice):
 
     def _update_entity_ids(self):
         """ sets the current media_player from input_select """
-        media_player = self.hass.states.get(self._media_player)
+        media_player = self.hass.states.get(self._media_player) # Example: self.hass.states.get(input_select.gmusic_player_speakers)
         if media_player is None:
             _LOGGER.error("(%s) is not a valid input_select entity.", self._media_player)
             return False
@@ -318,37 +358,49 @@ class GmusicComponent(MediaPlayerDevice):
 
 
     def _sync_player(self, entity_id=None, old_state=None, new_state=None):
-        """ Perform actions based on the state of the selected media_player """
-        # self._unsub_tracker = track_state_change(self.hass, self._entity_ids, self._sync_player)
+        """ Perform actions based on the state of the selected (Speakers) media_player """
         if not self._playing:
             return
+        
+        """ _player = The selected speakers """
         _player = self.hass.states.get(self._entity_ids)
-
-        """ full state of device _player, include attributes. """
-        #self._attributes['_player_full'] = _player
-
-        """ entity_id of _player. """
-        _player_id = _player.entity_id
-        self._attributes['_player_id'] = _player_id
-
-        """ _player "friendley_name" """
-        _player_friendly = _player.attributes['friendly_name']
-        self._attributes['_player_friendly'] = _player_friendly
-
+        
+        """ Entire state of the _player, include attributes. """
+        # self._attributes['_player'] = _player
+        
+        """ entity_id of selected speakers. """
+        self._attributes['_player_id'] = _player.entity_id
+        
         """ _player state - Example [playing -or- idle]. """
-        _player_state = _player.state
-        self._attributes['_player_state'] = _player_state
-
-        """ Set new volume if it has been changed on the _player """
-        if 'volume_level' in _player.attributes:
-            self._volume = round(_player.attributes['volume_level'],2)
-
+        self._attributes['_player_state'] = _player.state
+        
         if _player.state == 'off':
             self._state = STATE_OFF
             self.turn_off()
-
+        
+        """ Set new volume if it has been changed on the _player """
+        if 'volume_level' in _player.attributes:
+            self._volume = round(_player.attributes['volume_level'],2)
+        
         self.schedule_update_ha_state()
 
+    def _gmusic_play_media(self, event):
+        
+        _speak = event.data.get('speakers')
+        _source = event.data.get('source')
+        _media = event.data.get('name')
+        
+        if event.data['shuffle_mode']:
+            self._shuffle_mode = event.data.get('shuffle_mode')
+            _LOGGER.info("SHUFFLE_MODE: %s", self._shuffle_mode)
+        
+        if event.data['shuffle']:
+            self.set_shuffle(event.data.get('shuffle'))
+            _LOGGER.info("SHUFFLE: %s", self._shuffle)
+        
+        _LOGGER.debug("GMUSIC PLAY MEDIA")
+        _LOGGER.debug("Speakers: (%s) | Source: (%s) | Name: (%s)", _speak, _source, _media)
+        self.play_media(_source, _media, _speak)
 
     def _update_sources(self, now=None):
         _LOGGER.debug("Load source lists")
@@ -357,6 +409,9 @@ class GmusicComponent(MediaPlayerDevice):
         #self._update_library()
         #self._update_songs()
 
+    def _get_speakers(self, now=None):
+        data = {"options": list(self._speakersList), "entity_id": self._media_player}
+        self.hass.services.call(input_select.DOMAIN, input_select.SERVICE_SET_OPTIONS, data)
 
     def _update_playlists(self, now=None):
         """ Sync playlists from Google Music library """
@@ -517,7 +572,7 @@ class GmusicComponent(MediaPlayerDevice):
             self._track_artist_cover = None
         """ Get the stream URL and play on media_player """
         try:
-            if self._gmusicproxy == "NA":
+            if not self._gmusicproxy:
                 _url = self._api.get_stream_url(uid)
             else:
                 _url = self._gmusicproxy + "/get_song?id=" + uid
@@ -537,11 +592,13 @@ class GmusicComponent(MediaPlayerDevice):
         self.hass.services.call(DOMAIN_MP, SERVICE_PLAY_MEDIA, data)
 
 
-    def play_media(self, media_type, media_id, **kwargs):
+    def play_media(self, media_type, media_id, _player=None, **kwargs):
         if not self._update_entity_ids():
             return
-        _player = self.hass.states.get(self._entity_ids)
-
+        # Should skip this if input_select does not exist
+        if _player is not None:
+            _option = {"option": _player, "entity_id": self._media_player}
+            self.hass.services.call(input_select.DOMAIN, input_select.SERVICE_SELECT_OPTION, _option)
         if media_type == "station":
             _source = {"option":"Station", "entity_id": self._source}
             _option = {"option": media_id, "entity_id": self._station}
@@ -555,6 +612,8 @@ class GmusicComponent(MediaPlayerDevice):
         else:
             _LOGGER.error("Invalid: (%s) --> media_types are 'station' or 'playlist'.", media_type)
             return
+        
+        _player = self.hass.states.get(self._entity_ids)
 
         if self._playing == True:
             self.media_stop()

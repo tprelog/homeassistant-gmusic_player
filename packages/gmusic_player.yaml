@@ -8,6 +8,12 @@ input_select:
     - "Playlist"
     - "Station"
 
+  gmusic_player_speakers:
+    name: Speakers
+    icon: mdi:speaker
+    options:  ## Should be empty
+    - " "
+
   gmusic_player_playlist:
     name: Playlist
     icon: mdi:playlist-music
@@ -20,6 +26,37 @@ input_select:
     options:  ## Should be empty
     - " "
 
+
+script:
+  gmusic_sync_media:
+    alias: gmusic_player.sync_media
+    description: 'Update song list from Google Music'
+    sequence:
+      - event: gmusic_player.sync_media
+
+  gmusic_play_media:
+    alias: gmusic_player.play_media
+    description: 'Fire event: gmusic_play_media'
+    fields:
+      speakers:
+        description: Name of the speakers to play music on.
+        example: bedroom_stereo
+      source:
+        description: Media Source. Should be 'station' or 'playlist'
+        example: station
+      name:
+        description: Name of the station or playlist.
+        example: I'm Feeling Lucky
+    sequence:
+      - event: gmusic_player.play_media
+        event_data_template:
+          speakers: "{{ speakers }}"
+          source: "{{ source }}"
+          name: "{{ name }}"
+          shuffle: " {{ shuffle }}"
+          shuffle_mode: " {{ shuffle_mode }}"
+
+
 ## Sensor used for auto track advance.
 sensor:
   - platform: template
@@ -27,12 +64,12 @@ sensor:
       gmusic_receiver:
         value_template: "{{ states.media_player.gmusic_player.attributes._player_state }}"
 
+
 automation old:
   - alias: "gmusic_player_auto_advance"
     initial_state: 'on'
     trigger:
       platform: state
-      #value_template: "{{ states.media_player.gmusic_player.attributes._player_state }}"
       entity_id: 'sensor.gmusic_receiver'
       from: 'playing'
       to: 'idle'
@@ -58,9 +95,6 @@ automation old:
         entity_id: 'media_player.gmusic_player'
 
 
-## ------------------------------------------------------------------------- ,
-##  --------------   The rest of this file is optional    ----------------
-## ------------------------------------------------------------------------- ,
 homeassistant:
   customize:
     media_player.gmusic_player:
@@ -70,12 +104,20 @@ homeassistant:
       friendly_name: "Google Music Receiver"
       hidden: true
 
+    script.gmusic_sync_media:
+      friendly_name: "Sync Music"
+      icon: mdi:sync
+      
+    script.gmusic_play_media:
+      hidden: true
+      
 ## This group may only be visable when using the "states UI"
 group:
   google_music_media_player:
     name: Google Music
     entities:
     - media_player.gmusic_player
+    - script.gmusic_sync_media
     - input_select.gmusic_player_speakers
     - input_select.gmusic_player_source
     - input_select.gmusic_player_playlist

@@ -59,7 +59,7 @@ Key | Type | Required | Description
  - At the bottom, edit the example media_players so they match your own
 
 ```yaml
-    options: # Example media_players
+    speakers: # Example media_players
     - bedroom_stereo
     - workshop_stereo
 ```

@@ -2,15 +2,15 @@
 ## Use this 'package.yaml' file to configure "gmusic_player"
 media_player:
   - platform: gmusic_player
+    device_id: !secret gmusic_device_id
     username: !secret gmusic_username
     password: !secret gmusic_password
-    device_id: !secret gmusic_device_id
-
-input_select:
-  gmusic_player_speakers:
-    name: Speakers
-    icon: mdi:speaker
+      
     ## Add your media_players below
-    options: # Example media_players
-    - bedroom_stereo
-    - workshop_stereo
+    speakers: # Example media_players
+      - bedroom_stereo
+      - workshop_stereo
+      
+    ## Optional: enable streaming from gmusicproxy (Workaround for issue #6)
+    ## https://github.com/tprelog/homeassistant-gmusic_player/issues/6
+    #gmusicproxy: !secret gmusic_proxy
