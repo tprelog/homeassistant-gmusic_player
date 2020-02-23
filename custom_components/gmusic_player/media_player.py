@@ -13,7 +13,6 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.condition import state
 from homeassistant.helpers.event import track_state_change
 from homeassistant.helpers.event import call_later
-from homeassistant.config import get_default_config_dir
 
 import homeassistant.components.input_select as input_select
 
@@ -95,7 +94,7 @@ DEFAULT_SELECT_STATION = DOMAIN + '_station'
 DEFAULT_SELECT_PLAYLIST = DOMAIN + '_playlist'
 DEFAULT_SELECT_SPEAKERS = DOMAIN + '_speakers'
 
-DEFAULT_TOKEN_PATH = get_default_config_dir() + '/.'
+DEFAULT_TOKEN_PATH = './.'
 
 DEFAULT_SHUFFLE_MODE = 1
 DEFAULT_SHUFFLE = True
