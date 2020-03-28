@@ -572,7 +572,8 @@ class GmusicComponent(MediaPlayerDevice):
         """ Get the stream URL and play on media_player """
         try:
             if not self._gmusicproxy:
-                _url = self._api.get_stream_url(uid)
+                #_url = self._api.get_stream_url(uid)
+                _url = self._api.get_stream_url("{}".format(uid))
             else:
                 _url = self._gmusicproxy + "/get_song?id=" + uid
         except Exception as err:
