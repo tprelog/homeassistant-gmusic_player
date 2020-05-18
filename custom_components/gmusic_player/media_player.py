@@ -29,7 +29,7 @@ from homeassistant.const import (
 )
 
 from homeassistant.components.media_player import (
-    MediaPlayerDevice,
+    MediaPlayerEntity,
     PLATFORM_SCHEMA,
     SERVICE_TURN_ON,
     SERVICE_TURN_OFF,
@@ -121,7 +121,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     add_devices([GmusicComponent(hass, config)])
     return True
 
-class GmusicComponent(MediaPlayerDevice):
+class GmusicComponent(MediaPlayerEntity):
     def __init__(self, hass, config):
         from gmusicapi import Mobileclient
         # https://github.com/simon-weber/gmusicapi/issues/424
