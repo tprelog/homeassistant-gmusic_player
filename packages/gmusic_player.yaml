@@ -3,7 +3,7 @@
 input_select:
   gmusic_player_source:
     name: Source
-    icon: mdi:library-music
+    icon: mdi:music-box-multiple
     options:
     - "Playlist"
     - "Station"
