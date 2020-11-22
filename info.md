@@ -1,3 +1,11 @@
+:warning: Do not install this component
+
+[Google Music will be completely shutdown by December 2020](https://9to5google.com/2020/08/04/google-play-music-shutdown/)
+
+This component will stop working at that time.
+
+---
+
 ## Google Music in HA -- as a media player
 
 ### Based on the original gmusic in HA code by @Danielhiversen  
